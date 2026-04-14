@@ -6,6 +6,30 @@ export interface PokerRecord {
   win: 1 | -1;
 }
 
+export interface Season {
+  id: string;
+  name: string;
+  startDate: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD, undefined if active
+  active: boolean;
+}
+
+export interface ClearRecord {
+  id: string;
+  date: string;
+  player: string;
+  amount: number;
+  seasonId: string;
+  type: 'threshold' | 'season_end';
+}
+
+export interface AICacheItem {
+  label: string;
+  prompt: string;
+  result: string;
+  time: string;
+}
+
 export interface PlayerStats {
   name: string;
   total: number;
@@ -18,6 +42,7 @@ export interface PlayerStats {
   sessionCount: number;
   winRate: string;
   avgScore: number;
+  longestWinStreak: number;
 }
 
 export interface DailyBest {
@@ -48,6 +73,9 @@ export interface ComputedStats {
 
 // ==================== STORAGE ====================
 const STORAGE_KEY = 'poker-tracker-records';
+const SEASONS_KEY = 'poker-tracker-seasons';
+const CLEARS_KEY = 'poker-tracker-clears';
+const AI_CACHE_KEY = 'poker-tracker-ai-cache';
 
 export function loadRecords(): PokerRecord[] {
   if (typeof window === 'undefined') return [];
@@ -69,7 +97,99 @@ export function saveRecords(records: PokerRecord[]): void {
   }
 }
 
+export function loadSeasons(): Season[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SEASONS_KEY);
+    if (raw) return JSON.parse(raw) as Season[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function saveSeasons(seasons: Season[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadClears(): ClearRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CLEARS_KEY);
+    if (raw) return JSON.parse(raw) as ClearRecord[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function saveClears(clears: ClearRecord[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CLEARS_KEY, JSON.stringify(clears));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadAICache(): AICacheItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(AI_CACHE_KEY);
+    if (raw) return JSON.parse(raw) as AICacheItem[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function saveAICache(cache: AICacheItem[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(AI_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // ignore
+  }
+}
+
+// ==================== SEASON HELPERS ====================
+export function getRecordsForSeason(records: PokerRecord[], season: Season): PokerRecord[] {
+  return records.filter(r => {
+    if (r.date < season.startDate) return false;
+    if (season.endDate && r.date > season.endDate) return false;
+    return true;
+  });
+}
+
+export function getActiveSeason(seasons: Season[]): Season | undefined {
+  return seasons.find(s => s.active);
+}
+
+export function getClearsForSeason(clears: ClearRecord[], seasonId: string): ClearRecord[] {
+  return clears.filter(c => c.seasonId === seasonId);
+}
+
+export function getPlayerClearedAmount(clears: ClearRecord[], player: string): number {
+  if (!clears) return 0;
+  return clears.filter(c => c.player === player).reduce((sum, c) => sum + c.amount, 0);
+}
+
+export function getPostClearBalance(totalScore: number, clears: ClearRecord[], player: string): number {
+  if (!clears) return totalScore;
+  return totalScore - getPlayerClearedAmount(clears, player);
+}
+
 // ==================== SEED DATA ====================
+export const SEED_SEASONS: Season[] = [
+  { id: 's1', name: '赛季1', startDate: '2025-10-25', endDate: '2026-04-11', active: false },
+  { id: 's2', name: '赛季2', startDate: '2026-04-12', active: true },
+];
+
 export const SEED_RECORDS: PokerRecord[] = [
   {"date":"2025-10-26","player":"志","score":-2240,"win":-1},
   {"date":"2025-10-26","player":"茄","score":2700,"win":1},

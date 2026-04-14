@@ -1,6 +1,7 @@
 "use client";
 
-import type { ComputedStats } from "@/lib/data";
+import type { ComputedStats, ClearRecord } from "@/lib/data";
+import { getPlayerClearedAmount } from "@/lib/data";
 import { CHART_COLORS } from "@/lib/stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +12,11 @@ import {
 
 interface DashboardProps {
   stats: ComputedStats;
+  clears: ClearRecord[];
   onPlayerClick: (name: string) => void;
 }
 
-export function Dashboard({ stats, onPlayerClick }: DashboardProps) {
+export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps) {
   const winners = stats.players.filter(p => p.total > 0).sort((a, b) => b.total - a.total);
   const losers = stats.players.filter(p => p.total < 0).sort((a, b) => a.total - b.total);
   const winRateData = [...stats.players].filter(p => p.games >= 5).sort((a, b) => Number(b.winRate) - Number(a.winRate));
@@ -143,6 +145,55 @@ export function Dashboard({ stats, onPlayerClick }: DashboardProps) {
                     +{score.toLocaleString()}
                   </span>
                   <span className="text-[11px] text-muted-foreground">{date.slice(5)}</span>
+                </div>
+              ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Post-Clear Balance Leaderboard */}
+      <Card className="border-border/50 bg-card/80 backdrop-blur">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <span className="text-lg">💳</span> 清分后余额排行
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-1.5">
+            {[...stats.players]
+              .map(p => ({
+                name: p.name,
+                total: p.total,
+                cleared: getPlayerClearedAmount(clears, p.name),
+                get balance() { return this.total - this.cleared; },
+              }))
+              .sort((a, b) => b.balance - a.balance)
+              .map((b, i) => (
+                <div key={b.name} className="flex items-center gap-2.5 py-1.5">
+                  <span className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                    i < 3 ? medalColors[i] : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {i + 1}
+                  </span>
+                  <span
+                    className="flex-1 text-sm cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => onPlayerClick(b.name)}
+                  >
+                    {b.name}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    原始 {b.total > 0 ? '+' : ''}{b.total.toLocaleString()}
+                  </span>
+                  {b.cleared > 0 && (
+                    <span className="text-[11px] text-amber-500 font-mono">
+                      -{b.cleared.toLocaleString()}
+                    </span>
+                  )}
+                  <span className={`text-sm font-bold font-mono min-w-[70px] text-right ${
+                    b.balance > 0 ? 'text-emerald-500' : b.balance < 0 ? 'text-red-500' : 'text-muted-foreground'
+                  }`}>
+                    {b.balance > 0 ? '+' : ''}{b.balance.toLocaleString()}
+                  </span>
                 </div>
               ))}
           </div>
