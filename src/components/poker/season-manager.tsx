@@ -19,7 +19,7 @@ interface SeasonManagerProps {
 const CLEAR_THRESHOLD = 8000;
 
 export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeason }: SeasonManagerProps) {
-  // Per-player cleared amounts
+  // Per-player cleared amounts (signed sum: 请吃饭负值 + 赛季清分可正可负)
   const clearedMap: Record<string, number> = {};
   for (const c of clears) {
     clearedMap[c.player] = (clearedMap[c.player] || 0) + c.amount;
@@ -31,11 +31,11 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
       name: p.name,
       total: p.total,
       cleared: clearedMap[p.name] || 0,
-      get balance() { return this.total - this.cleared; },
+      get balance() { return this.total + this.cleared; }, // 余额 = 累计 + 已清分
     }))
     .sort((a, b) => b.total - a.total);
 
-  // Players over 8000 threshold (active season only, for clear UI)
+  // Players with |balance| >= 8000 (active season only, for clear UI)
   const playersOverThreshold = season.active
     ? playerSummary.filter(b => Math.abs(b.balance) >= CLEAR_THRESHOLD)
     : [];
@@ -189,8 +189,14 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
                     }`}>
                       {b.total > 0 ? '+' : ''}{b.total.toLocaleString()}
                     </td>
-                    <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right text-amber-500">
-                      {b.cleared > 0 ? `-${b.cleared.toLocaleString()}` : '-'}
+                    <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right">
+                      {b.cleared < 0 ? (
+                        <span className="text-red-500">{b.cleared.toLocaleString()}</span>
+                      ) : b.cleared > 0 ? (
+                        <span className="text-emerald-500">+{b.cleared.toLocaleString()}</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </td>
                     <td className={`py-1.5 px-2 border-b border-border/50 font-mono text-right font-bold ${
                       b.balance > 0 ? 'text-emerald-500' : b.balance < 0 ? 'text-red-500' : 'text-muted-foreground'
@@ -231,7 +237,13 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
                     <tr key={c.id}>
                       <td className="py-1.5 px-2.5 border-b border-border/50 font-mono">{c.date}</td>
                       <td className="py-1.5 px-2.5 border-b border-border/50">{c.player}</td>
-                      <td className="py-1.5 px-2.5 border-b border-border/50 font-mono font-semibold text-amber-500">-{c.amount.toLocaleString()}</td>
+                      <td className="py-1.5 px-2.5 border-b border-border/50 font-mono font-semibold">
+                        {c.amount < 0 ? (
+                          <span className="text-red-500">{c.amount.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-emerald-500">+{c.amount.toLocaleString()}</span>
+                        )}
+                      </td>
                       <td className="py-1.5 px-2.5 border-b border-border/50">
                         <Badge variant="outline" className="text-[10px]">
                           {c.type === 'threshold' ? '抵扣清分' : '赛季结算'}

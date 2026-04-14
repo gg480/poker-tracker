@@ -115,23 +115,22 @@ export default function PokerTracker() {
     persistClears(newClears);
   }, []);
 
-  // Clear a specific player's score (custom amount, for threshold/meal offset)
+  // 请吃饭清分：用户输入正数，存为负值（扣减余额）
   const handleClearPlayer = useCallback((player: string, amount: number, type: 'threshold' | 'season_end') => {
     if (!activeSeason) return;
     const newClear: ClearRecord = {
       id: `clear-${Date.now()}`,
       date: new Date().toISOString().slice(0, 10),
       player,
-      amount,
+      amount: -Math.abs(amount), // 请吃饭/额外清分存为负值
       seasonId: activeSeason.id,
       type,
     };
     saveClears([...clears, newClear]);
   }, [activeSeason, clears, saveClears]);
 
-  // End season: clear all players (positive and negative), close season
-  // amount = remaining (positive balance→positive amount, negative balance→negative amount)
-  // balance = original - (alreadyCleared + remaining) = 0
+  // End season: 全员清分，赛季清分 = -(当前余额)
+  // 余额 = 累计 + 已清分，赛季清分让余额归零
   const handleEndSeason = useCallback(() => {
     if (!activeSeason) return;
 
@@ -142,13 +141,13 @@ export default function PokerTracker() {
       const alreadyCleared = seasonClearsNow
         .filter(c => c.player === p.name)
         .reduce((s, c) => s + c.amount, 0);
-      const remaining = p.total - alreadyCleared;
-      if (remaining !== 0) {
+      const currentBalance = p.total + alreadyCleared; // 余额 = 累计 + 已清分
+      if (currentBalance !== 0) {
         newClears.push({
           id: `clear-${Date.now()}-${p.name}`,
           date: new Date().toISOString().slice(0, 10),
           player: p.name,
-          amount: remaining, // positive=扣款, negative=豁免债务, balance→0
+          amount: -currentBalance, // 赛季清分 = -(当前余额)，可正可负
           seasonId: activeSeason.id,
           type: 'season_end',
         });

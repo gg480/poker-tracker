@@ -330,8 +330,9 @@ export function getPlayerClearedAmount(clears: ClearRecord[], player: string): n
 export function getPostClearBalance(totalScore: number, clears: ClearRecord[], player: string): number {
   if (!clears) return totalScore;
   const cleared = getPlayerClearedAmount(clears, player);
-  // Positive balance: deduct cleared amount; Negative balance: add cleared amount (debt relief)
-  return totalScore > 0 ? totalScore - cleared : totalScore + cleared;
+  // 余额 = 累计积分 + 已清分
+  // 已清分 = Σ(请吃饭负值) + Σ(赛季清分 = -余额, 可正可负)
+  return totalScore + cleared;
 }
 
 // ==================== SEED DATA ====================
@@ -340,15 +341,23 @@ export const SEED_SEASONS: Season[] = [
   { id: 's2', name: '赛季2', startDate: '2026-04-12', active: true },
 ];
 
-// 赛季1已结束，所有正余额玩家在赛季结束时全额清分
+// 赛季1已结束，全员清分（赛季清分 = -当前余额，可正可负）
 export const SEED_CLEARS: ClearRecord[] = [
-  { id: 'clear-s1-佳', date: '2026-04-11', player: '佳', amount: 31190, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-茄', date: '2026-04-11', player: '茄', amount: 16000, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-锦辉', date: '2026-04-11', player: '锦辉', amount: 6120, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-fafa', date: '2026-04-11', player: 'fafa', amount: 4960, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-卢老师', date: '2026-04-11', player: '卢老师', amount: 2870, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-润年老表', date: '2026-04-11', player: '润年老表', amount: 2220, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-谦', date: '2026-04-11', player: '谦', amount: 1110, seasonId: 's1', type: 'season_end' },
+  // 正余额玩家：赛季清分为负值（扣减余额→0）
+  { id: 'clear-s1-佳', date: '2026-04-11', player: '佳', amount: -31190, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-茄', date: '2026-04-11', player: '茄', amount: -16000, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-锦辉', date: '2026-04-11', player: '锦辉', amount: -6120, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-fafa', date: '2026-04-11', player: 'fafa', amount: -4960, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-卢老师', date: '2026-04-11', player: '卢老师', amount: -2870, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-润年老表', date: '2026-04-11', player: '润年老表', amount: -2220, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-谦', date: '2026-04-11', player: '谦', amount: -1110, seasonId: 's1', type: 'season_end' },
+  // 负余额玩家：赛季清分为正值（豁免债务→0）
+  { id: 'clear-s1-志', date: '2026-04-11', player: '志', amount: 1070, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-达', date: '2026-04-11', player: '达', amount: 1560, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-柱', date: '2026-04-11', player: '柱', amount: 3260, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-楠', date: '2026-04-11', player: '楠', amount: 10550, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-杰仔', date: '2026-04-11', player: '杰仔', amount: 14220, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-润', date: '2026-04-11', player: '润', amount: 33810, seasonId: 's1', type: 'season_end' },
 ];
 
 export const SEED_RECORDS: PokerRecord[] = [
