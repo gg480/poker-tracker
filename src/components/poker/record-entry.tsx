@@ -10,8 +10,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface RecordEntryProps {
-  records: PokerRecord[];
-  stats: ComputedStats;
+  records: PokerRecord[];       // all records (for save merge)
+  stats: ComputedStats;         // filtered stats (for player autocomplete)
   onSave: (records: PokerRecord[]) => void;
 }
 
