@@ -21,10 +21,10 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
   const allSorted = [...stats.players].sort((a, b) => b.total - a.total);
   const medalColors = ["bg-amber-500", "bg-slate-400", "bg-amber-700"];
 
-  // Post-clear balance: sign-aware formula
+  // Post-clear balance: balance = original - cleared (cleared can be negative for debt relief)
   const playerBalances = [...stats.players].map(p => {
     const cleared = getPlayerClearedAmount(clears, p.name);
-    const balance = p.total > 0 ? p.total - cleared : p.total + cleared;
+    const balance = p.total - cleared; // cleared negative = debt relief, balance = total - cleared
     return { ...p, cleared, balance };
   });
 
@@ -197,8 +197,14 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
                       }`}>
                         {b.total > 0 ? '+' : ''}{b.total.toLocaleString()}
                       </td>
-                      <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right text-amber-500">
-                        {b.cleared > 0 ? `-${b.cleared.toLocaleString()}` : '-'}
+                      <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right">
+                        {b.cleared > 0 ? (
+                          <span className="text-red-500">-{b.cleared.toLocaleString()}</span>
+                        ) : b.cleared < 0 ? (
+                          <span className="text-emerald-500">+{(-b.cleared).toLocaleString()}</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className={`py-1.5 px-2 border-b border-border/50 font-mono text-right font-bold ${
                         b.balance > 0 ? 'text-emerald-500' : b.balance < 0 ? 'text-red-500' : 'text-muted-foreground'

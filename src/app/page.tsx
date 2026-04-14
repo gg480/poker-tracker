@@ -130,11 +130,11 @@ export default function PokerTracker() {
   }, [activeSeason, clears, saveClears]);
 
   // End season: clear all players (positive and negative), close season
+  // amount = remaining (positive balance→positive amount, negative balance→negative amount)
+  // balance = original - (alreadyCleared + remaining) = 0
   const handleEndSeason = useCallback(() => {
     if (!activeSeason) return;
 
-    // Generate season-end clear records for ALL players with non-zero balance
-    // amount = |remaining_balance| so that final balance = 0 after this clear
     const seasonClearsNow = getClearsForSeason(clears, activeSeason.id);
     const seasonStats = computeStats(getRecordsForSeason(allRecords, activeSeason));
     const newClears: ClearRecord[] = [];
@@ -142,14 +142,13 @@ export default function PokerTracker() {
       const alreadyCleared = seasonClearsNow
         .filter(c => c.player === p.name)
         .reduce((s, c) => s + c.amount, 0);
-      // Remaining balance before season-end clear
-      const remaining = p.total > 0 ? p.total - alreadyCleared : p.total + alreadyCleared;
+      const remaining = p.total - alreadyCleared;
       if (remaining !== 0) {
         newClears.push({
           id: `clear-${Date.now()}-${p.name}`,
           date: new Date().toISOString().slice(0, 10),
           player: p.name,
-          amount: Math.abs(remaining), // season-end clear amount = |balance|, so balance → 0
+          amount: remaining, // positive=扣款, negative=豁免债务, balance→0
           seasonId: activeSeason.id,
           type: 'season_end',
         });
