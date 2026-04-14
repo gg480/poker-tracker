@@ -115,8 +115,8 @@ export default function PokerTracker() {
     persistClears(newClears);
   }, []);
 
-  // Clear a specific player's score
-  const handleClearPlayer = useCallback((player: string, amount: number) => {
+  // Clear a specific player's score (custom amount, for threshold/meal offset)
+  const handleClearPlayer = useCallback((player: string, amount: number, type: 'threshold' | 'season_end') => {
     if (!activeSeason) return;
     const newClear: ClearRecord = {
       id: `clear-${Date.now()}`,
@@ -124,35 +124,33 @@ export default function PokerTracker() {
       player,
       amount,
       seasonId: activeSeason.id,
-      type: 'threshold',
+      type,
     };
     saveClears([...clears, newClear]);
   }, [activeSeason, clears, saveClears]);
 
-  // End season: clear all positive-balance players, close season
+  // End season: clear all players (positive and negative), close season
   const handleEndSeason = useCallback(() => {
     if (!activeSeason) return;
 
-    // Generate season-end clear records for all positive balance players
+    // Generate season-end clear records for ALL players with non-zero balance
     const seasonClearsNow = getClearsForSeason(clears, activeSeason.id);
     const seasonStats = computeStats(getRecordsForSeason(allRecords, activeSeason));
     const newClears: ClearRecord[] = [];
     for (const p of seasonStats.players) {
-      if (p.total > 0) {
-        const alreadyCleared = seasonClearsNow
-          .filter(c => c.player === p.name)
-          .reduce((s, c) => s + c.amount, 0);
-        const remaining = p.total - alreadyCleared;
-        if (remaining > 0) {
-          newClears.push({
-            id: `clear-${Date.now()}-${p.name}`,
-            date: new Date().toISOString().slice(0, 10),
-            player: p.name,
-            amount: remaining,
-            seasonId: activeSeason.id,
-            type: 'season_end',
-          });
-        }
+      const alreadyCleared = seasonClearsNow
+        .filter(c => c.player === p.name)
+        .reduce((s, c) => s + c.amount, 0);
+      const remaining = p.total - alreadyCleared;
+      if (remaining !== 0) {
+        newClears.push({
+          id: `clear-${Date.now()}-${p.name}`,
+          date: new Date().toISOString().slice(0, 10),
+          player: p.name,
+          amount: Math.abs(remaining),
+          seasonId: activeSeason.id,
+          type: 'season_end',
+        });
       }
     }
 

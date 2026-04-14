@@ -329,7 +329,9 @@ export function getPlayerClearedAmount(clears: ClearRecord[], player: string): n
 
 export function getPostClearBalance(totalScore: number, clears: ClearRecord[], player: string): number {
   if (!clears) return totalScore;
-  return totalScore - getPlayerClearedAmount(clears, player);
+  const cleared = getPlayerClearedAmount(clears, player);
+  // Positive balance: deduct cleared amount; Negative balance: add cleared amount (debt relief)
+  return totalScore > 0 ? totalScore - cleared : totalScore + cleared;
 }
 
 // ==================== SEED DATA ====================

@@ -152,50 +152,60 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
       </Card>
 
       {/* Post-Clear Balance Leaderboard */}
-      <Card className="border-border/50 bg-card/80 backdrop-blur">
+      <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">💳</span> 清分后余额排行
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-1.5">
-            {[...stats.players]
-              .map(p => ({
-                name: p.name,
-                total: p.total,
-                cleared: getPlayerClearedAmount(clears, p.name),
-                get balance() { return this.total - this.cleared; },
-              }))
-              .sort((a, b) => b.balance - a.balance)
-              .map((b, i) => (
-                <div key={b.name} className="flex items-center gap-2.5 py-1.5">
-                  <span className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                    i < 3 ? medalColors[i] : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {i + 1}
-                  </span>
-                  <span
-                    className="flex-1 text-sm cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => onPlayerClick(b.name)}
-                  >
-                    {b.name}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground font-mono">
-                    原始 {b.total > 0 ? '+' : ''}{b.total.toLocaleString()}
-                  </span>
-                  {b.cleared > 0 && (
-                    <span className="text-[11px] text-amber-500 font-mono">
-                      -{b.cleared.toLocaleString()}
-                    </span>
-                  )}
-                  <span className={`text-sm font-bold font-mono min-w-[70px] text-right ${
-                    b.balance > 0 ? 'text-emerald-500' : b.balance < 0 ? 'text-red-500' : 'text-muted-foreground'
-                  }`}>
-                    {b.balance > 0 ? '+' : ''}{b.balance.toLocaleString()}
-                  </span>
-                </div>
-              ))}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr>
+                  <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium w-8">#</th>
+                  <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium">玩家</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">原始积分</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">已清分</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">余额</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...stats.players]
+                  .map(p => ({
+                    name: p.name,
+                    total: p.total,
+                    cleared: getPlayerClearedAmount(clears, p.name),
+                    get balance() { return this.total - this.cleared; },
+                  }))
+                  .sort((a, b) => b.balance - a.balance)
+                  .map((b, i) => (
+                    <tr key={b.name} className="cursor-pointer hover:bg-primary/5" onClick={() => onPlayerClick(b.name)}>
+                      <td className="py-1.5 px-2 border-b border-border/50">
+                        <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold ${
+                          i < 3 ? medalColors[i] + ' text-primary-foreground' : 'text-muted-foreground'
+                        }`}>
+                          {i + 1}
+                        </span>
+                      </td>
+                      <td className="py-1.5 px-2 border-b border-border/50 font-medium">{b.name}</td>
+                      <td className={`py-1.5 px-2 border-b border-border/50 font-mono text-right ${
+                        b.total > 0 ? 'text-emerald-500' : b.total < 0 ? 'text-red-500' : ''
+                      }`}>
+                        {b.total > 0 ? '+' : ''}{b.total.toLocaleString()}
+                      </td>
+                      <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right text-amber-500">
+                        {b.cleared > 0 ? `-${b.cleared.toLocaleString()}` : '-'}
+                      </td>
+                      <td className={`py-1.5 px-2 border-b border-border/50 font-mono text-right font-bold ${
+                        b.balance > 0 ? 'text-emerald-500' : b.balance < 0 ? 'text-red-500' : 'text-muted-foreground'
+                      }`}>
+                        {b.balance > 0 ? '+' : ''}{b.balance.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
