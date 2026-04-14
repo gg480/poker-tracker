@@ -14,13 +14,43 @@ export interface Season {
   active: boolean;
 }
 
-export interface ClearRecord {
-  id: string;
-  date: string;
+// 清分结算记录：每个玩家每个赛季一条记录
+export interface PlayerSettlement {
   player: string;
-  amount: number;
   seasonId: string;
-  type: 'threshold' | 'season_end';
+  settleScore: number;  // 请吃饭清分，>= 0（已包含所有额外清分）
+  seasonAdjust: number; // 赛季清分，可正可负，默认0
+}
+
+// ==================== 核心计算函数 ====================
+
+/** 计算清分余额: balance = total_score - settle_score + season_adjust */
+export function calcBalance(totalScore: number, settlement: PlayerSettlement | undefined): number {
+  if (!settlement) return totalScore;
+  return totalScore - settlement.settleScore + settlement.seasonAdjust;
+}
+
+/** 获取指定玩家在指定赛季的结算记录 */
+export function getSettlementForPlayer(settlements: PlayerSettlement[], player: string, seasonId: string): PlayerSettlement | undefined {
+  return settlements.find(s => s.player === player && s.seasonId === seasonId);
+}
+
+/** 获取指定赛季的所有结算记录 */
+export function getSettlementsForSeason(settlements: PlayerSettlement[], seasonId: string): PlayerSettlement[] {
+  return settlements.filter(s => s.seasonId === seasonId);
+}
+
+/** 获取指定玩家的所有结算记录 */
+export function getSettlementsForPlayer(settlements: PlayerSettlement[], player: string): PlayerSettlement[] {
+  return settlements.filter(s => s.player === player);
+}
+
+/** 计算玩家跨赛季的清分余额（所有赛季汇总） */
+export function calcOverallBalance(totalScore: number, settlements: PlayerSettlement[], player: string): number {
+  const playerSettlements = getSettlementsForPlayer(settlements, player);
+  const totalSettle = playerSettlements.reduce((sum, s) => sum + s.settleScore, 0);
+  const totalAdjust = playerSettlements.reduce((sum, s) => sum + s.seasonAdjust, 0);
+  return totalScore - totalSettle + totalAdjust;
 }
 
 export interface AICacheItem {
@@ -78,7 +108,7 @@ export interface ComputedStats {
 // Legacy localStorage Keys (降级备份)
 const STORAGE_KEY = 'poker-tracker-records';
 const SEASONS_KEY = 'poker-tracker-seasons';
-const CLEARS_KEY = 'poker-tracker-clears';
+const SETTLEMENTS_KEY = 'poker-tracker-settlements';
 const AI_CACHE_KEY = 'poker-tracker-ai-cache';
 
 // ==================== API HELPER ====================
@@ -202,48 +232,72 @@ export async function saveSeasons(seasons: Season[]): Promise<void> {
   }
 }
 
-export async function loadClears(): Promise<ClearRecord[]> {
+export async function loadSettlements(): Promise<PlayerSettlement[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const data = await apiGet('/api/clear-records') as Array<{ id: string; date: string; player: string; amount: number; season_id: string; clear_type: string }>;
-    return data.map(c => ({
-      id: c.id,
-      date: c.date,
-      player: c.player,
-      amount: c.amount,
-      seasonId: c.season_id,
-      type: c.clear_type as 'threshold' | 'season_end',
+    const data = await apiGet('/api/settlements') as Array<{ player: string; season_id: string; settle_score: number; season_adjust: number }>;
+    return data.map(s => ({
+      player: s.player,
+      seasonId: s.season_id,
+      settleScore: Number(s.settle_score),
+      seasonAdjust: Number(s.season_adjust),
     }));
   } catch (e) {
-    console.warn("Failed to load clears from API, falling back to localStorage", e);
+    console.warn("Failed to load settlements from API, falling back to localStorage", e);
     try {
-      const raw = localStorage.getItem(CLEARS_KEY);
-      if (raw) return JSON.parse(raw) as ClearRecord[];
+      const raw = localStorage.getItem(SETTLEMENTS_KEY);
+      if (raw) return JSON.parse(raw) as PlayerSettlement[];
     } catch {
       // ignore
     }
   }
-  return SEED_CLEARS;
+  return SEED_SETTLEMENTS;
 }
 
-export async function saveClear(record: ClearRecord): Promise<void> {
+export async function saveSettlement(settlement: PlayerSettlement): Promise<void> {
   if (typeof window === 'undefined') return;
+  // 更新 localStorage 缓存
   try {
-    await apiPost('/api/clear-records', {
-      date: record.date,
-      player: record.player,
-      amount: record.amount,
-      season_id: record.seasonId,
-      clear_type: record.type,
+    const raw = localStorage.getItem(SETTLEMENTS_KEY);
+    const list: PlayerSettlement[] = raw ? JSON.parse(raw) : [];
+    const idx = list.findIndex(s => s.player === settlement.player && s.seasonId === settlement.seasonId);
+    if (idx >= 0) {
+      list[idx] = settlement;
+    } else {
+      list.push(settlement);
+    }
+    localStorage.setItem(SETTLEMENTS_KEY, JSON.stringify(list));
+  } catch {
+    // ignore
+  }
+  // 同步到 Supabase
+  try {
+    await apiPost('/api/settlements', {
+      player: settlement.player,
+      season_id: settlement.seasonId,
+      settle_score: settlement.settleScore,
+      season_adjust: settlement.seasonAdjust,
     });
   } catch (e) {
-    console.error("Failed to save clear to API", e);
+    console.error("Failed to save settlement to API", e);
   }
 }
 
-// Legacy sync function for backward compatibility
-export function saveClears(clears: ClearRecord[]): void {
-  localStorage.setItem(CLEARS_KEY, JSON.stringify(clears));
+export async function saveSettlements(settlements: PlayerSettlement[]): Promise<void> {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SETTLEMENTS_KEY, JSON.stringify(settlements));
+  for (const s of settlements) {
+    try {
+      await apiPost('/api/settlements', {
+        player: s.player,
+        season_id: s.seasonId,
+        settle_score: s.settleScore,
+        season_adjust: s.seasonAdjust,
+      });
+    } catch (e) {
+      console.error("Failed to save settlement to API", e);
+    }
+  }
 }
 
 export async function loadAICache(): Promise<AICacheItem[]> {
@@ -319,21 +373,22 @@ export function getActiveSeason(seasons: Season[]): Season | undefined {
   return seasons.find(s => s.active);
 }
 
-export function getClearsForSeason(clears: ClearRecord[], seasonId: string): ClearRecord[] {
+export function getClearsForSeason(clears: PlayerSettlement[], seasonId: string): PlayerSettlement[] {
   return clears.filter(c => c.seasonId === seasonId);
 }
 
-export function getPlayerClearedAmount(clears: ClearRecord[], player: string): number {
-  if (!clears) return 0;
-  return clears.filter(c => c.player === player).reduce((sum, c) => sum + c.amount, 0);
+export function getPlayerClearedAmount(clears: PlayerSettlement[], player: string): { settleScore: number; seasonAdjust: number } {
+  if (!clears) return { settleScore: 0, seasonAdjust: 0 };
+  const playerSettlements = clears.filter(c => c.player === player);
+  return {
+    settleScore: playerSettlements.reduce((sum, c) => sum + c.settleScore, 0),
+    seasonAdjust: playerSettlements.reduce((sum, c) => sum + c.seasonAdjust, 0),
+  };
 }
 
-export function getPostClearBalance(totalScore: number, clears: ClearRecord[], player: string): number {
-  if (!clears) return totalScore;
-  const cleared = getPlayerClearedAmount(clears, player);
-  // 余额 = 累计积分 + 已清分
-  // 已清分 = Σ(请吃饭负值) + Σ(赛季清分 = -余额, 可正可负)
-  return totalScore + cleared;
+export function getPostClearBalance(totalScore: number, settlements: PlayerSettlement[], player: string): number {
+  const { settleScore, seasonAdjust } = getPlayerClearedAmount(settlements, player);
+  return totalScore - settleScore + seasonAdjust;
 }
 
 // ==================== SEED DATA ====================
@@ -342,23 +397,23 @@ export const SEED_SEASONS: Season[] = [
   { id: 's2', name: '赛季2', startDate: '2026-04-12', active: true },
 ];
 
-// 赛季1已结束，全员清分（赛季清分 = -当前余额，可正可负）
-export const SEED_CLEARS: ClearRecord[] = [
-  // 正余额玩家：赛季清分为负值（扣减余额→0）
-  { id: 'clear-s1-佳', date: '2026-04-11', player: '佳', amount: -31190, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-茄', date: '2026-04-11', player: '茄', amount: -16000, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-锦辉', date: '2026-04-11', player: '锦辉', amount: -6120, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-fafa', date: '2026-04-11', player: 'fafa', amount: -4960, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-卢老师', date: '2026-04-11', player: '卢老师', amount: -2870, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-润年老表', date: '2026-04-11', player: '润年老表', amount: -2220, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-谦', date: '2026-04-11', player: '谦', amount: -1110, seasonId: 's1', type: 'season_end' },
-  // 负余额玩家：赛季清分为正值（豁免债务→0）
-  { id: 'clear-s1-志', date: '2026-04-11', player: '志', amount: 1070, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-达', date: '2026-04-11', player: '达', amount: 1560, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-柱', date: '2026-04-11', player: '柱', amount: 3260, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-楠', date: '2026-04-11', player: '楠', amount: 10550, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-杰仔', date: '2026-04-11', player: '杰仔', amount: 14220, seasonId: 's1', type: 'season_end' },
-  { id: 'clear-s1-润', date: '2026-04-11', player: '润', amount: 33810, seasonId: 's1', type: 'season_end' },
+// 赛季1已结束，全员赛季清分（season_adjust = -balance → balance归零）
+export const SEED_SETTLEMENTS: PlayerSettlement[] = [
+  // 正余额玩家：season_adjust为负值（扣减余额→0）
+  { player: '佳', seasonId: 's1', settleScore: 0, seasonAdjust: -31190 },
+  { player: '茄', seasonId: 's1', settleScore: 0, seasonAdjust: -16000 },
+  { player: '锦辉', seasonId: 's1', settleScore: 0, seasonAdjust: -6120 },
+  { player: 'fafa', seasonId: 's1', settleScore: 0, seasonAdjust: -4960 },
+  { player: '卢老师', seasonId: 's1', settleScore: 0, seasonAdjust: -2870 },
+  { player: '润年老表', seasonId: 's1', settleScore: 0, seasonAdjust: -2220 },
+  { player: '谦', seasonId: 's1', settleScore: 0, seasonAdjust: -1110 },
+  // 负余额玩家：season_adjust为正值（豁免债务→0）
+  { player: '志', seasonId: 's1', settleScore: 0, seasonAdjust: 1070 },
+  { player: '达', seasonId: 's1', settleScore: 0, seasonAdjust: 1560 },
+  { player: '柱', seasonId: 's1', settleScore: 0, seasonAdjust: 3260 },
+  { player: '楠', seasonId: 's1', settleScore: 0, seasonAdjust: 10550 },
+  { player: '杰仔', seasonId: 's1', settleScore: 0, seasonAdjust: 14220 },
+  { player: '润', seasonId: 's1', settleScore: 0, seasonAdjust: 33810 },
 ];
 
 export const SEED_RECORDS: PokerRecord[] = [

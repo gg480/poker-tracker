@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { PokerRecord, ComputedStats, PlayerStats, CumulativePoint, TrendPoint, DailyBest, ClearRecord } from "./data";
+import type { PokerRecord, ComputedStats, PlayerStats, CumulativePoint, TrendPoint, DailyBest, PlayerSettlement } from "./data";
 
 export function computeStats(records: PokerRecord[]): ComputedStats {
   const playerMap: Record<string, {
@@ -127,7 +127,7 @@ export interface Award {
   value: string;
 }
 
-export function computeAwards(stats: ComputedStats, clears: ClearRecord[]): Award[] {
+export function computeAwards(stats: ComputedStats, settlements: PlayerSettlement[]): Award[] {
   const eligible = stats.players.filter(p => p.games >= 1);
   if (eligible.length === 0) return [];
 
@@ -161,13 +161,13 @@ export function computeAwards(stats: ComputedStats, clears: ClearRecord[]): Awar
     return stdB - stdA;
   })[0];
 
-  // 8. 🤝 散财童子 - 清分次数最多
-  const clearCounts: Record<string, number> = {};
-  for (const c of clears) {
-    clearCounts[c.player] = (clearCounts[c.player] || 0) + 1;
+  // 8. 🤝 散财童子 - 请吃饭清分最多(settleScore最高)
+  const settleMap: Record<string, number> = {};
+  for (const s of settlements) {
+    settleMap[s.player] = (settleMap[s.player] || 0) + s.settleScore;
   }
-  const benefactor = Object.keys(clearCounts).length > 0
-    ? Object.entries(clearCounts).sort((a, b) => b[1] - a[1])[0][0]
+  const benefactor = Object.keys(settleMap).length > 0
+    ? Object.entries(settleMap).sort((a, b) => b[1] - a[1])[0][0]
     : '暂无';
 
   return [
@@ -231,9 +231,9 @@ export function computeAwards(stats: ComputedStats, clears: ClearRecord[]): Awar
       key: 'benefactor',
       title: '散财童子',
       icon: '🤝',
-      description: '清分次数最多',
+      description: '请吃饭清分最多',
       winner: benefactor,
-      value: `${clearCounts[benefactor] || 0}次`,
+      value: `${(settleMap[benefactor] || 0).toLocaleString()}分`,
     },
   ];
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Season, ClearRecord, ComputedStats } from "@/lib/data";
+import type { Season, PlayerSettlement, ComputedStats } from "@/lib/data";
+import { calcBalance, getSettlementForPlayer } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,28 +12,23 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 interface SeasonManagerProps {
   season: Season;
   stats: ComputedStats;
-  clears: ClearRecord[];
-  onClearPlayer: (player: string, amount: number, type: 'threshold' | 'season_end') => void;
+  settlements: PlayerSettlement[];
+  onSettlePlayer: (player: string, amount: number) => void;
   onEndSeason: () => void;
 }
 
 const CLEAR_THRESHOLD = 8000;
 
-export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeason }: SeasonManagerProps) {
-  // Per-player cleared amounts (signed sum: 请吃饭负值 + 赛季清分可正可负)
-  const clearedMap: Record<string, number> = {};
-  for (const c of clears) {
-    clearedMap[c.player] = (clearedMap[c.player] || 0) + c.amount;
-  }
-
-  // Sorted by total score descending
+export function SeasonManager({ season, stats, settlements, onSettlePlayer, onEndSeason }: SeasonManagerProps) {
+  // Per-player settlement data for this season
   const playerSummary = [...stats.players]
-    .map(p => ({
-      name: p.name,
-      total: p.total,
-      cleared: clearedMap[p.name] || 0,
-      get balance() { return this.total + this.cleared; }, // 余额 = 累计 + 已清分
-    }))
+    .map(p => {
+      const settlement = getSettlementForPlayer(settlements, p.name, season.id);
+      const settleScore = settlement?.settleScore ?? 0;
+      const seasonAdjust = settlement?.seasonAdjust ?? 0;
+      const balance = calcBalance(p.total, settlement);
+      return { name: p.name, total: p.total, settleScore, seasonAdjust, balance };
+    })
     .sort((a, b) => b.total - a.total);
 
   // Players with |balance| >= 8000 (active season only, for clear UI)
@@ -42,8 +38,6 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
 
   // Track input values for each player
   const [clearInputs, setClearInputs] = useState<Record<string, string>>({});
-
-  const seasonClears = clears; // already filtered by season in page.tsx
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -94,7 +88,7 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
                     </span>
                     <Input
                       type="number"
-                      placeholder="清分积分"
+                      placeholder="请吃饭积分"
                       value={clearInputs[b.name] || ''}
                       onChange={e => setClearInputs(prev => ({ ...prev, [b.name]: e.target.value }))}
                       className="bg-background/80 border-border h-7 text-xs flex-1 min-w-[80px]"
@@ -107,7 +101,7 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
                       onClick={() => {
                         const amount = Number(clearInputs[b.name]);
                         if (amount > 0) {
-                          onClearPlayer(b.name, amount, 'threshold');
+                          onSettlePlayer(b.name, amount);
                           setClearInputs(prev => {
                             const next = { ...prev };
                             delete next[b.name];
@@ -141,7 +135,7 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
                 <AlertDialogHeader>
                   <AlertDialogTitle>确认结束赛季？</AlertDialogTitle>
                   <AlertDialogDescription>
-                    结束赛季将：1) 对所有玩家按余额执行清分(正负均清); 2) 关闭当前赛季不可再录入。此操作不可撤销。
+                    结束赛季将：1) 对所有玩家执行赛季清分(season_adjust += -balance); 2) 关闭当前赛季不可再录入。此操作不可撤销。
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -169,7 +163,8 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
                   <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium w-8">#</th>
                   <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium">玩家</th>
                   <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">累计积分</th>
-                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">已清分</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">请吃饭</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">赛季调整</th>
                   <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">余额</th>
                 </tr>
               </thead>
@@ -190,10 +185,17 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
                       {b.total > 0 ? '+' : ''}{b.total.toLocaleString()}
                     </td>
                     <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right">
-                      {b.cleared < 0 ? (
-                        <span className="text-red-500">{b.cleared.toLocaleString()}</span>
-                      ) : b.cleared > 0 ? (
-                        <span className="text-emerald-500">+{b.cleared.toLocaleString()}</span>
+                      {b.settleScore > 0 ? (
+                        <span className="text-amber-500">-{b.settleScore.toLocaleString()}</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right">
+                      {b.seasonAdjust !== 0 ? (
+                        <span className={b.seasonAdjust > 0 ? 'text-emerald-500' : 'text-red-500'}>
+                          {b.seasonAdjust > 0 ? '+' : ''}{b.seasonAdjust.toLocaleString()}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
@@ -211,7 +213,7 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
         </CardContent>
       </Card>
 
-      {/* Clear History */}
+      {/* Settlement Summary (replaces Clear History) */}
       <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -219,35 +221,37 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {seasonClears.length === 0 ? (
+          {settlements.length === 0 ? (
             <p className="text-sm text-muted-foreground">暂无清分记录</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr>
-                    <th className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium">日期</th>
                     <th className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium">玩家</th>
-                    <th className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium">清分金额</th>
-                    <th className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium">类型</th>
+                    <th className="text-right py-2 px-2.5 text-muted-foreground border-b border-border font-medium">请吃饭清分</th>
+                    <th className="text-right py-2 px-2.5 text-muted-foreground border-b border-border font-medium">赛季调整</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...seasonClears].reverse().map(c => (
-                    <tr key={c.id}>
-                      <td className="py-1.5 px-2.5 border-b border-border/50 font-mono">{c.date}</td>
-                      <td className="py-1.5 px-2.5 border-b border-border/50">{c.player}</td>
-                      <td className="py-1.5 px-2.5 border-b border-border/50 font-mono font-semibold">
-                        {c.amount < 0 ? (
-                          <span className="text-red-500">{c.amount.toLocaleString()}</span>
+                  {settlements.map(s => (
+                    <tr key={s.player}>
+                      <td className="py-1.5 px-2.5 border-b border-border/50 font-medium">{s.player}</td>
+                      <td className="py-1.5 px-2.5 border-b border-border/50 font-mono text-right">
+                        {s.settleScore > 0 ? (
+                          <span className="text-amber-500">-{s.settleScore.toLocaleString()}</span>
                         ) : (
-                          <span className="text-emerald-500">+{c.amount.toLocaleString()}</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
-                      <td className="py-1.5 px-2.5 border-b border-border/50">
-                        <Badge variant="outline" className="text-[10px]">
-                          {c.type === 'threshold' ? '抵扣清分' : '赛季结算'}
-                        </Badge>
+                      <td className="py-1.5 px-2.5 border-b border-border/50 font-mono text-right">
+                        {s.seasonAdjust !== 0 ? (
+                          <span className={s.seasonAdjust > 0 ? 'text-emerald-500' : 'text-red-500'}>
+                            {s.seasonAdjust > 0 ? '+' : ''}{s.seasonAdjust.toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </td>
                     </tr>
                   ))}

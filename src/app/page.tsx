@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { PokerRecord, Season, ClearRecord } from "@/lib/data";
+import type { PokerRecord, Season, PlayerSettlement } from "@/lib/data";
 import {
   loadRecords, saveRecords as persistRecords,
   loadSeasons, saveSeasons as persistSeasons,
-  loadClears, saveClears as persistClears,
-  SEED_RECORDS, SEED_SEASONS, SEED_CLEARS,
-  getActiveSeason, getRecordsForSeason, getClearsForSeason,
+  loadSettlements, saveSettlement as persistSettlement,
+  SEED_RECORDS, SEED_SEASONS, SEED_SETTLEMENTS,
+  getActiveSeason, getRecordsForSeason, getSettlementsForSeason,
+  getSettlementForPlayer, calcBalance,
 } from "@/lib/data";
 import { useStats, computeStats, computeAwards } from "@/lib/stats";
 import { Dashboard } from "@/components/poker/dashboard";
@@ -34,7 +35,7 @@ type SeasonFilter = string; // "all" | season.id
 export default function PokerTracker() {
   const [allRecords, setAllRecords] = useState<PokerRecord[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
-  const [clears, setClears] = useState<ClearRecord[]>([]);
+  const [settlements, setSettlements] = useState<PlayerSettlement[]>([]);
   const [tab, setTab] = useState<TabKey>("overview");
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
@@ -43,10 +44,10 @@ export default function PokerTracker() {
   // Load data from Supabase/localStorage on mount
   useEffect(() => {
     async function loadData() {
-      const [stored, storedSeasons, storedClears] = await Promise.all([
+      const [stored, storedSeasons, storedSettlements] = await Promise.all([
         loadRecords(),
         loadSeasons(),
-        loadClears(),
+        loadSettlements(),
       ]);
       
       if (stored.length > 0) {
@@ -63,11 +64,14 @@ export default function PokerTracker() {
         persistSeasons(SEED_SEASONS);
       }
 
-      if (storedClears.length > 0) {
-        setClears(storedClears);
+      if (storedSettlements.length > 0) {
+        setSettlements(storedSettlements);
       } else {
-        setClears(SEED_CLEARS);
-        persistClears(SEED_CLEARS);
+        setSettlements(SEED_SETTLEMENTS);
+        // Persist each settlement individually
+        for (const s of SEED_SETTLEMENTS) {
+          persistSettlement(s);
+        }
       }
       setLoading(false);
     }
@@ -87,17 +91,17 @@ export default function PokerTracker() {
     ? getRecordsForSeason(allRecords, currentSeason)
     : allRecords;
 
-  // Filtered clears based on season selection
-  // "all" = include all clears (for merged balance view)
-  // specific season = only that season's clears
-  const filteredClears = useMemo(() =>
+  // Filtered settlements based on season selection
+  // "all" = include all settlements (for merged balance view)
+  // specific season = only that season's settlements
+  const filteredSettlements = useMemo(() =>
     currentSeason
-      ? getClearsForSeason(clears, currentSeason.id)
-      : clears,
-    [currentSeason, clears]);
+      ? getSettlementsForSeason(settlements, currentSeason.id)
+      : settlements,
+    [currentSeason, settlements]);
 
   const stats = useStats(filteredRecords);
-  const awards = computeAwards(stats, filteredClears);
+  const awards = computeAwards(stats, filteredSettlements);
 
   // Save handlers
   const saveRecords = useCallback((newRecords: PokerRecord[]) => {
@@ -110,49 +114,68 @@ export default function PokerTracker() {
     persistSeasons(newSeasons);
   }, []);
 
-  const saveClears = useCallback((newClears: ClearRecord[]) => {
-    setClears(newClears);
-    persistClears(newClears);
+  const updateSettlement = useCallback((settlement: PlayerSettlement) => {
+    setSettlements(prev => {
+      const idx = prev.findIndex(s => s.player === settlement.player && s.seasonId === settlement.seasonId);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = settlement;
+        return next;
+      }
+      return [...prev, settlement];
+    });
+    persistSettlement(settlement);
   }, []);
 
-  // 请吃饭清分：用户输入正数，存为负值（扣减余额）
-  const handleClearPlayer = useCallback((player: string, amount: number, type: 'threshold' | 'season_end') => {
+  // 请吃饭清分：用户输入正数，增加 settleScore
+  // balance = total - settleScore + seasonAdjust
+  const handleSettlePlayer = useCallback((player: string, amount: number) => {
     if (!activeSeason) return;
-    const newClear: ClearRecord = {
-      id: `clear-${Date.now()}`,
-      date: new Date().toISOString().slice(0, 10),
+    const existing = getSettlementForPlayer(settlements, player, activeSeason.id);
+    const settlement: PlayerSettlement = {
       player,
-      amount: -Math.abs(amount), // 请吃饭/额外清分存为负值
       seasonId: activeSeason.id,
-      type,
+      settleScore: (existing?.settleScore ?? 0) + Math.abs(amount), // 请吃饭清分累加
+      seasonAdjust: existing?.seasonAdjust ?? 0,
     };
-    saveClears([...clears, newClear]);
-  }, [activeSeason, clears, saveClears]);
+    updateSettlement(settlement);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSeason, settlements]);
 
-  // End season: 全员清分，赛季清分 = -(当前余额)
-  // 余额 = 累计 + 已清分，赛季清分让余额归零
+  // End season: 全员清分，season_adjust += -balance
   const handleEndSeason = useCallback(() => {
     if (!activeSeason) return;
 
-    const seasonClearsNow = getClearsForSeason(clears, activeSeason.id);
     const seasonStats = computeStats(getRecordsForSeason(allRecords, activeSeason));
-    const newClears: ClearRecord[] = [];
+    const seasonSettlements = getSettlementsForSeason(settlements, activeSeason.id);
+    
+    // For each player, update season_adjust
+    const updatedSettlements = [...settlements];
     for (const p of seasonStats.players) {
-      const alreadyCleared = seasonClearsNow
-        .filter(c => c.player === p.name)
-        .reduce((s, c) => s + c.amount, 0);
-      const currentBalance = p.total + alreadyCleared; // 余额 = 累计 + 已清分
-      if (currentBalance !== 0) {
-        newClears.push({
-          id: `clear-${Date.now()}-${p.name}`,
-          date: new Date().toISOString().slice(0, 10),
+      const existing = getSettlementForPlayer(seasonSettlements, p.name, activeSeason.id);
+      const settleScore = existing?.settleScore ?? 0;
+      const currentSeasonAdjust = existing?.seasonAdjust ?? 0;
+      const balance = calcBalance(p.total, { player: p.name, seasonId: activeSeason.id, settleScore, seasonAdjust: currentSeasonAdjust });
+      
+      if (balance !== 0) {
+        const newSettlement: PlayerSettlement = {
           player: p.name,
-          amount: -currentBalance, // 赛季清分 = -(当前余额)，可正可负
           seasonId: activeSeason.id,
-          type: 'season_end',
-        });
+          settleScore,
+          seasonAdjust: currentSeasonAdjust + (-balance), // season_adjust += -balance → balance归零
+        };
+        
+        const idx = updatedSettlements.findIndex(s => s.player === p.name && s.seasonId === activeSeason.id);
+        if (idx >= 0) {
+          updatedSettlements[idx] = newSettlement;
+        } else {
+          updatedSettlements.push(newSettlement);
+        }
+        persistSettlement(newSettlement);
       }
     }
+
+    setSettlements(updatedSettlements);
 
     // Close the season
     const updatedSeasons = seasons.map(s =>
@@ -160,10 +183,8 @@ export default function PokerTracker() {
         ? { ...s, active: false, endDate: new Date().toISOString().slice(0, 10) }
         : s
     );
-
-    saveClears([...clears, ...newClears]);
     saveSeasons(updatedSeasons);
-  }, [activeSeason, allRecords, clears, seasons, saveClears, saveSeasons]);
+  }, [activeSeason, allRecords, settlements, seasons, saveSeasons]);
 
   if (loading) {
     return (
@@ -241,7 +262,7 @@ export default function PokerTracker() {
         {tab === "overview" && (
           <Dashboard
             stats={stats}
-            clears={filteredClears}
+            settlements={filteredSettlements}
             onPlayerClick={(name) => {
               setSelectedPlayer(name);
               setTab("player");
@@ -266,8 +287,8 @@ export default function PokerTracker() {
           <SeasonManager
             season={currentSeason}
             stats={stats}
-            clears={filteredClears}
-            onClearPlayer={handleClearPlayer}
+            settlements={filteredSettlements}
+            onSettlePlayer={handleSettlePlayer}
             onEndSeason={handleEndSeason}
           />
         )}

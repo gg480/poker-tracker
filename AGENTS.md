@@ -30,6 +30,8 @@
 │   ├── app/
 │   │   ├── api/ai-analysis/    # AI 分析 SSE 接口
 │   │   │   └── route.ts
+│   │   ├── api/settlements/    # 玩家结算 API (PlayerSettlement CRUD)
+│   │   │   └── route.ts
 │   │   ├── globals.css         # 全局样式 (深色主题)
 │   │   ├── layout.tsx          # 根布局
 │   │   └── page.tsx            # 主页面 (Tab 切换)
@@ -44,7 +46,7 @@
 │   │   └── ui/                 # Shadcn UI 组件库
 │   ├── hooks/                  # 自定义 Hooks
 │   ├── lib/
-│   │   ├── data.ts             # 类型定义、种子数据、localStorage 工具 (含Season/ClearRecord/AICache)
+│   │   ├── data.ts             # 类型定义、种子数据、localStorage 工具 (含Season/PlayerSettlement/AICache)
 │   │   ├── stats.ts            # 统计计算 (computeStats, useStats, computeAwards)
 │   │   └── utils.ts            # 通用工具函数
 │   └── server.ts               # 自定义服务端入口
@@ -63,22 +65,24 @@
 
 ## 核心数据流
 
-- 数据存储在 `localStorage`，4 个键名:
+- 数据存储在 `localStorage` + Supabase，4 个键名:
   - `poker-tracker-records` - 比赛记录
   - `poker-tracker-seasons` - 赛季数据
-  - `poker-tracker-clears` - 清分记录
+  - `poker-tracker-settlements` - 玩家结算数据 (PlayerSettlement)
   - `poker-tracker-ai-cache` - AI预设缓存
-- 初始加载若无数据，自动写入种子数据 (`SEED_RECORDS`, `SEED_SEASONS`)
+- 初始加载若无数据，自动写入种子数据 (`SEED_RECORDS`, `SEED_SEASONS`, `SEED_SETTLEMENTS`)
 - `computeStats()` 接受 `PokerRecord[]` 返回 `ComputedStats`，由 `useStats` hook 在客户端 memo 化
-- `computeAwards()` 接受 `ComputedStats` 和 `ClearRecord[]` 返回 8 个奖项
+- `computeAwards()` 接受 `ComputedStats` 和 `PlayerSettlement[]` 返回 8 个奖项
 - AI 分析通过 `POST /api/ai-analysis` 发送 `{ prompt, context }`，返回 SSE 流
 
-## 赛季与清分机制
+## 清分规则 (PlayerSettlement)
 
-- 赛季通过日期范围过滤记录，支持多赛季并存
-- 清分规则: 连续上分达 8000 触发清分，仅记录支付不修改原始积分
-- 清分后余额 = 原始累计积分 - 已清分总额
-- 赛季结束时对所有正余额玩家执行全额清分
+- 每个玩家每个赛季一条结算记录，包含 `settleScore`(请吃饭清分, >=0) 和 `seasonAdjust`(赛季调整, 可正可负)
+- **余额公式**: `balance = total_score - settle_score + season_adjust`
+- **请吃饭清分**: 用户输入正数，累加到 `settleScore` (仅激活赛季显示)
+- **赛季结束**: `season_adjust += -balance` → 余额归零
+- 清分后余额排行、赛季总分总结均使用此公式
+- Supabase 表: `player_settlements` (player + season_id 联合主键)
 
 ## 开发规范
 

@@ -119,6 +119,40 @@ export async function insertClearRecord(record: { date: string; player: string; 
   return data;
 }
 
+// ==================== 玩家结算 (PlayerSettlement) ====================
+
+export async function getAllSettlements() {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("player_settlements")
+    .select("player, season_id, settle_score, season_adjust")
+    .order("player", { ascending: true });
+  if (error) throw new Error(`查询玩家结算失败: ${error.message}`);
+  return data || [];
+}
+
+export async function getSettlementsBySeason(seasonId: string) {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("player_settlements")
+    .select("player, season_id, settle_score, season_adjust")
+    .eq("season_id", seasonId)
+    .order("player", { ascending: true });
+  if (error) throw new Error(`按赛季查询玩家结算失败: ${error.message}`);
+  return data || [];
+}
+
+export async function upsertSettlement(settlement: { player: string; season_id: string; settle_score: number; season_adjust: number }) {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("player_settlements")
+    .upsert(settlement as never, { onConflict: "player,season_id" })
+    .select()
+    .single();
+  if (error) throw new Error(`更新玩家结算失败: ${error.message}`);
+  return data;
+}
+
 // ==================== AI 缓存 ====================
 
 export async function getAllAICache() {

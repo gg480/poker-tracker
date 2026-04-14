@@ -1,7 +1,7 @@
 "use client";
 
-import type { ComputedStats, ClearRecord } from "@/lib/data";
-import { getPlayerClearedAmount } from "@/lib/data";
+import type { ComputedStats, PlayerSettlement } from "@/lib/data";
+import { calcBalance } from "@/lib/data";
 import { CHART_COLORS } from "@/lib/stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,21 +12,22 @@ import {
 
 interface DashboardProps {
   stats: ComputedStats;
-  clears: ClearRecord[];
+  settlements: PlayerSettlement[];
   onPlayerClick: (name: string) => void;
 }
 
-export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps) {
+export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardProps) {
   // Dragon Tiger Board: all players sorted by total
   const allSorted = [...stats.players].sort((a, b) => b.total - a.total);
   const medalColors = ["bg-amber-500", "bg-slate-400", "bg-amber-700"];
 
-  // Post-clear balance: 余额 = 累计积分 + 已清分
-  // 已清分 = Σ(请吃饭负值) + Σ(赛季清分=-(余额), 可正可负)
+  // Post-clear balance: balance = total_score - settle_score + season_adjust
   const playerBalances = [...stats.players].map(p => {
-    const cleared = getPlayerClearedAmount(clears, p.name);
-    const balance = p.total + cleared;
-    return { ...p, cleared, balance };
+    const playerSettlements = settlements.filter(s => s.player === p.name);
+    const settleScore = playerSettlements.reduce((sum, s) => sum + s.settleScore, 0);
+    const seasonAdjust = playerSettlements.reduce((sum, s) => sum + s.seasonAdjust, 0);
+    const balance = calcBalance(p.total, { player: p.name, seasonId: '', settleScore, seasonAdjust });
+    return { ...p, settleScore, seasonAdjust, balance };
   });
 
   // Recent games: ALL players, sorted by games desc, then show top N for columns
@@ -174,8 +175,9 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
                 <tr>
                   <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium w-8">#</th>
                   <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium">玩家</th>
-                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">原始积分</th>
-                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">已清分</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">累计积分</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">请吃饭</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">赛季调整</th>
                   <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">余额</th>
                 </tr>
               </thead>
@@ -199,10 +201,17 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
                         {b.total > 0 ? '+' : ''}{b.total.toLocaleString()}
                       </td>
                       <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right">
-                        {b.cleared < 0 ? (
-                          <span className="text-red-500">{b.cleared.toLocaleString()}</span>
-                        ) : b.cleared > 0 ? (
-                          <span className="text-emerald-500">+{b.cleared.toLocaleString()}</span>
+                        {b.settleScore > 0 ? (
+                          <span className="text-amber-500">-{b.settleScore.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="py-1.5 px-2 border-b border-border/50 font-mono text-right">
+                        {b.seasonAdjust !== 0 ? (
+                          <span className={b.seasonAdjust > 0 ? 'text-emerald-500' : 'text-red-500'}>
+                            {b.seasonAdjust > 0 ? '+' : ''}{b.seasonAdjust.toLocaleString()}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
