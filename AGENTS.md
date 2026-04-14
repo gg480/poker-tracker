@@ -1,4 +1,4 @@
-# 项目上下文
+# 德扑积分榜 (Poker Tracker)
 
 ### 版本技术栈
 
@@ -7,50 +7,75 @@
 - **Language**: TypeScript 5
 - **UI 组件**: shadcn/ui (基于 Radix UI)
 - **Styling**: Tailwind CSS 4
+- **图表**: Recharts
+- **AI**: coze-coding-dev-sdk (LLM Skill, 流式 SSE)
+
+## 项目概述
+
+朋友局德州扑克积分追踪与分析工具，包含四个核心模块：
+
+1. **总览** - 龙虎榜、累计积分走势曲线、胜率排行、单日最高记录、最近场次明细表
+2. **录入** - 日期选择、玩家积分填写、自动校验合计为零、历史玩家联想、localStorage 持久化
+3. **玩家** - 个人数据面板(总分/胜率/场均/极值)、个人走势图、逐场记录
+4. **AI分析** - 接入 LLM API，5 个预设场景 + 自定义提问，流式 SSE 输出
 
 ## 目录结构
 
 ```
-├── public/                 # 静态资源
-├── scripts/                # 构建与启动脚本
-│   ├── build.sh            # 构建脚本
-│   ├── dev.sh              # 开发环境启动脚本
-│   ├── prepare.sh          # 预处理脚本
-│   └── start.sh            # 生产环境启动脚本
+├── public/                     # 静态资源
+├── scripts/                    # 构建与启动脚本
 ├── src/
-│   ├── app/                # 页面路由与布局
-│   ├── components/ui/      # Shadcn UI 组件库
-│   ├── hooks/              # 自定义 Hooks
-│   ├── lib/                # 工具库
-│   │   └── utils.ts        # 通用工具函数 (cn)
-│   └── server.ts           # 自定义服务端入口
-├── next.config.ts          # Next.js 配置
-├── package.json            # 项目依赖管理
-└── tsconfig.json           # TypeScript 配置
+│   ├── app/
+│   │   ├── api/ai-analysis/    # AI 分析 SSE 接口
+│   │   │   └── route.ts
+│   │   ├── globals.css         # 全局样式 (深色主题)
+│   │   ├── layout.tsx          # 根布局
+│   │   └── page.tsx            # 主页面 (Tab 切换)
+│   ├── components/
+│   │   ├── poker/              # 业务组件
+│   │   │   ├── dashboard.tsx   # 总览面板
+│   │   │   ├── record-entry.tsx # 录入面板
+│   │   │   ├── player-view.tsx  # 玩家详情面板
+│   │   │   └── ai-analysis.tsx  # AI 分析面板
+│   │   └── ui/                 # Shadcn UI 组件库
+│   ├── hooks/                  # 自定义 Hooks
+│   ├── lib/
+│   │   ├── data.ts             # 类型定义、种子数据、localStorage 工具
+│   │   ├── stats.ts            # 统计计算 (computeStats, useStats)
+│   │   └── utils.ts            # 通用工具函数
+│   └── server.ts               # 自定义服务端入口
+├── next.config.ts
+├── package.json
+└── tsconfig.json
 ```
 
-- 项目文件（如 app 目录、pages 目录、components 等）默认初始化到 `src/` 目录下。
+## 构建与测试命令
 
-## 包管理规范
+- **开发**: `pnpm dev` (端口 5000)
+- **构建**: `pnpm build`
+- **类型检查**: `pnpm ts-check`
+- **代码检查**: `pnpm lint`
+- **启动生产**: `pnpm start`
 
-**仅允许使用 pnpm** 作为包管理器，**严禁使用 npm 或 yarn**。
-**常用命令**：
-- 安装依赖：`pnpm add <package>`
-- 安装开发依赖：`pnpm add -D <package>`
-- 安装所有依赖：`pnpm install`
-- 移除依赖：`pnpm remove <package>`
+## 核心数据流
+
+- 数据存储在 `localStorage`，键名 `poker-tracker-records`
+- 初始加载若无数据，自动写入种子数据 (`SEED_RECORDS`)
+- `computeStats()` 接受 `PokerRecord[]` 返回 `ComputedStats`，由 `useStats` hook 在客户端 memo 化
+- AI 分析通过 `POST /api/ai-analysis` 发送 `{ prompt, context }`，返回 SSE 流
 
 ## 开发规范
 
 ### Hydration 问题防范
 
-1. 严禁在 JSX 渲染逻辑中直接使用 typeof window、Date.now()、Math.random() 等动态数据。**必须使用 'use client' 并配合 useEffect + useState 确保动态内容仅在客户端挂载后渲染**；同时严禁非法 HTML 嵌套（如 <p> 嵌套 <div>）。
-2. **禁止使用 head 标签**，优先使用 metadata，详见文档：https://nextjs.org/docs/app/api-reference/functions/generate-metadata
-   1. 三方 CSS、字体等资源可在 `globals.css` 中顶部通过 `@import` 引入或使用 next/font
-   2. preload, preconnect, dns-prefetch 通过 ReactDOM 的 preload、preconnect、dns-prefetch 方法引入
-   3. json-ld 可阅读 https://nextjs.org/docs/app/guides/json-ld
+1. 所有页面组件均标记 `"use client"`，数据通过 `useEffect` + `useState` 在客户端加载
+2. 禁止在 JSX 渲染逻辑中直接使用 `typeof window`、`Date.now()` 等动态数据
+3. 三方字体通过 `globals.css` 的 `@import` 引入（在 `@import 'tailwindcss'` 之前）
 
-## UI 设计与组件规范 (UI & Styling Standards)
+### 深色主题
 
-- 模板默认预装核心组件库 `shadcn/ui`，位于`src/components/ui/`目录下
-- Next.js 项目**必须默认**采用 shadcn/ui 组件、风格和规范，**除非用户指定用其他的组件和规范。**
+项目使用自定义深色主题，所有 CSS 变量在 `globals.css` 的 `:root` 中定义（`--background: #0a0e1a` 等）。组件使用 Tailwind 类名引用主题色，避免硬编码颜色值。
+
+### 包管理
+
+**仅允许使用 pnpm**，严禁 npm 或 yarn。
