@@ -160,3 +160,21 @@ export async function findAICacheByLabel(label: string) {
   if (error) throw new Error(`查询AI缓存by label失败: ${error.message}`);
   return data;
 }
+
+export async function trimAICache(keepCount: number = 3) {
+  const client = getSupabaseClient();
+  // Get all IDs ordered by created_at desc
+  const { data, error } = await client
+    .from("ai_cache")
+    .select("id")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`查询AI缓存ID失败: ${error.message}`);
+  if (!data || data.length <= keepCount) return 0;
+  const idsToDelete = data.slice(keepCount).map((d: { id: string }) => d.id);
+  const { error: delError } = await client
+    .from("ai_cache")
+    .delete()
+    .in("id", idsToDelete);
+  if (delError) throw new Error(`删除旧AI缓存失败: ${delError.message}`);
+  return idsToDelete.length;
+}

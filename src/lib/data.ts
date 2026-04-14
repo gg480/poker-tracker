@@ -280,7 +280,7 @@ export async function saveAICacheItem(item: AICacheItem): Promise<void> {
   } catch (e) {
     console.error("Failed to save AI cache to API", e);
   }
-  // 也更新 localStorage
+  // 也更新 localStorage，只保留最新3条
   try {
     const raw = localStorage.getItem(AI_CACHE_KEY);
     const cache: AICacheItem[] = raw ? JSON.parse(raw) : [];
@@ -288,9 +288,10 @@ export async function saveAICacheItem(item: AICacheItem): Promise<void> {
     if (existingIndex >= 0) {
       cache[existingIndex] = item;
     } else {
-      cache.push(item);
+      cache.unshift(item); // 新的放前面
     }
-    localStorage.setItem(AI_CACHE_KEY, JSON.stringify(cache));
+    // 只保留最新3条
+    localStorage.setItem(AI_CACHE_KEY, JSON.stringify(cache.slice(0, 3)));
   } catch {
     // ignore
   }
