@@ -17,15 +17,25 @@ interface DashboardProps {
 }
 
 export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps) {
-  const winners = stats.players.filter(p => p.total > 0).sort((a, b) => b.total - a.total);
-  const losers = stats.players.filter(p => p.total < 0).sort((a, b) => a.total - b.total);
-  const winRateData = [...stats.players].filter(p => p.games >= 5).sort((a, b) => Number(b.winRate) - Number(a.winRate));
-
+  // Dragon Tiger Board: all players sorted by total
+  const allSorted = [...stats.players].sort((a, b) => b.total - a.total);
   const medalColors = ["bg-amber-500", "bg-slate-400", "bg-amber-700"];
+
+  // Post-clear balance: sign-aware formula
+  const playerBalances = [...stats.players].map(p => {
+    const cleared = getPlayerClearedAmount(clears, p.name);
+    const balance = p.total > 0 ? p.total - cleared : p.total + cleared;
+    return { ...p, cleared, balance };
+  });
+
+  // Recent games: ALL players, sorted by games desc, then show top N for columns
+  const allByGames = [...stats.players].sort((a, b) => b.games - a.games);
+  // Mobile: show top 8 players in recent games table; desktop: top 12
+  const recentGamesCols = allByGames.slice(0, 10);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Dragon Tiger Board */}
+      {/* Dragon Tiger Board - 纯数字列表，适配移动端 */}
       <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -33,38 +43,36 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-2 font-medium">赢家</p>
-              <ResponsiveContainer width="100%" height={Math.max(180, winners.length * 44)}>
-                <BarChart data={winners} layout="vertical" margin={{ left: 50, right: 60 }}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#e2e8f0', fontSize: 13 }} width={50} />
-                  <Tooltip formatter={(v: number) => v.toLocaleString()} contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} />
-                  <Bar dataKey="total" radius={[0, 6, 6, 0]} cursor="pointer"
-                    onClick={(d: { name: string }) => onPlayerClick(d.name)}>
-                    {winners.map((_, i) => (
-                      <Cell key={i} fill={`hsl(${142 - i * 8}, 70%, ${55 - i * 4}%)`} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-2 font-medium">输家</p>
-              <ResponsiveContainer width="100%" height={Math.max(180, losers.length * 44)}>
-                <BarChart data={losers} layout="vertical" margin={{ left: 50, right: 20 }}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#e2e8f0', fontSize: 13 }} width={50} />
-                  <Tooltip formatter={(v: number) => v.toLocaleString()} contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} />
-                  <Bar dataKey="total" radius={[6, 0, 0, 6]}>
-                    {losers.map((_, i) => (
-                      <Cell key={i} fill={`hsl(${0 + i * 5}, 70%, ${50 + i * 3}%)`} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr>
+                  <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium w-8">#</th>
+                  <th className="text-left py-2 px-2 text-muted-foreground border-b border-border font-medium">玩家</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground border-b border-border font-medium">总收支</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allSorted.map((p, i) => (
+                  <tr key={p.name} className="cursor-pointer hover:bg-primary/5"
+                    onClick={() => onPlayerClick(p.name)}>
+                    <td className="py-1.5 px-2 border-b border-border/50">
+                      <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold ${
+                        i < 3 ? medalColors[i] + ' text-primary-foreground' : 'text-muted-foreground'
+                      }`}>
+                        {i + 1}
+                      </span>
+                    </td>
+                    <td className="py-1.5 px-2 border-b border-border/50 font-medium">{p.name}</td>
+                    <td className={`py-1.5 px-2 border-b border-border/50 font-mono text-right font-bold text-sm ${
+                      p.total > 0 ? 'text-emerald-500' : p.total < 0 ? 'text-red-500' : 'text-muted-foreground'
+                    }`}>
+                      {p.total > 0 ? '+' : ''}{p.total.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
@@ -104,12 +112,12 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={winRateData} margin={{ left: 10, right: 10, bottom: 20 }}>
+            <BarChart data={[...stats.players].filter(p => p.games >= 5).sort((a, b) => Number(b.winRate) - Number(a.winRate))} margin={{ left: 10, right: 10, bottom: 20 }}>
               <XAxis dataKey="name" tick={{ fill: '#e2e8f0', fontSize: 11 }} angle={-30} textAnchor="end" />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} domain={[0, 100]} />
               <Tooltip formatter={(v: number) => `${v}%`} contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} />
               <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
-                {winRateData.map((_, i) => (
+                {[...stats.players].filter(p => p.games >= 5).sort((a, b) => Number(b.winRate) - Number(a.winRate)).map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Bar>
@@ -171,16 +179,11 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
                 </tr>
               </thead>
               <tbody>
-                {[...stats.players]
-                  .map(p => ({
-                    name: p.name,
-                    total: p.total,
-                    cleared: getPlayerClearedAmount(clears, p.name),
-                    get balance() { return this.total - this.cleared; },
-                  }))
+                {playerBalances
                   .sort((a, b) => b.balance - a.balance)
                   .map((b, i) => (
-                    <tr key={b.name} className="cursor-pointer hover:bg-primary/5" onClick={() => onPlayerClick(b.name)}>
+                    <tr key={b.name} className="cursor-pointer hover:bg-primary/5"
+                      onClick={() => onPlayerClick(b.name)}>
                       <td className="py-1.5 px-2 border-b border-border/50">
                         <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold ${
                           i < 3 ? medalColors[i] + ' text-primary-foreground' : 'text-muted-foreground'
@@ -210,38 +213,52 @@ export function Dashboard({ stats, clears = [], onPlayerClick }: DashboardProps)
         </CardContent>
       </Card>
 
-      {/* Recent Games */}
+      {/* Recent Games - ALL players sorted by games desc */}
       <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">📅</span> 最近场次
+            <Badge variant="secondary" className="text-[10px] ml-1">{stats.totalGames}场</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
+            <table className="w-full border-collapse text-xs min-w-[400px]">
               <thead>
                 <tr>
-                  <th className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium whitespace-nowrap">日期</th>
-                  {stats.players.slice(0, 10).map(p => (
-                    <th key={p.name} className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium whitespace-nowrap">{p.name}</th>
+                  <th className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium whitespace-nowrap sticky left-0 bg-card z-10">日期</th>
+                  {recentGamesCols.map(p => (
+                    <th key={p.name} className="text-left py-2 px-2.5 text-muted-foreground border-b border-border font-medium whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <span>{p.name}</span>
+                        <span className="text-[9px] text-muted-foreground/50">{p.games}场</span>
+                      </div>
+                    </th>
                   ))}
+                  {allByGames.length > recentGamesCols.length && (
+                    <th className="text-muted-foreground/30 py-2 px-2.5 border-b border-border/50">
+                      +{allByGames.length - recentGamesCols.length}人
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {stats.dates.slice(-8).reverse().map(d => (
                   <tr key={d}>
-                    <td className="py-1.5 px-2.5 border-b border-border/50 font-mono whitespace-nowrap">{d.slice(5)}</td>
-                    {stats.players.slice(0, 10).map(p => {
+                    <td className="py-1.5 px-2.5 border-b border-border/50 font-mono whitespace-nowrap sticky left-0 bg-card z-10">{d.slice(5)}</td>
+                    {recentGamesCols.map(p => {
                       const rec = stats.dateMap[d]?.find(r => r.player === p.name);
                       return (
                         <td key={p.name} className={`py-1.5 px-2.5 border-b border-border/50 font-mono whitespace-nowrap font-semibold ${
-                          rec ? (rec.score > 0 ? 'text-emerald-500' : 'text-red-500') : 'text-muted-foreground/30'
+                          rec ? (rec.score > 0 ? 'text-emerald-500' : 'text-red-500') : 'text-muted-foreground/20'
                         }`}>
                           {rec ? (rec.score > 0 ? '+' : '') + rec.score.toLocaleString() : '-'}
                         </td>
                       );
                     })}
+                    {allByGames.length > recentGamesCols.length && (
+                      <td className="border-b border-border/50" />
+                    )}
                   </tr>
                 ))}
               </tbody>
