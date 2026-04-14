@@ -72,37 +72,62 @@ export interface ComputedStats {
 }
 
 // ==================== STORAGE ====================
-// Supabase Client Functions (async)
-import { 
-  getAllRecordsFromSupabase, 
-  insertRecordsToSupabase, 
-  deleteRecordsByDateFromSupabase,
-  getAllSeasonsFromSupabase,
-  insertSeasonToSupabase,
-  updateSeasonFromSupabase,
-  endSeasonFromSupabase,
-  getAllClearsFromSupabase,
-  insertClearRecordToSupabase,
-  getAllAICacheFromSupabase,
-  insertAICacheToSupabase,
-  updateAICacheFromSupabase,
-  deleteAICacheFromSupabase
-} from "@/storage/database/supabase/crud";
+// 使用 Next.js API Routes 作为数据代理层
+// Supabase 凭证仅在服务端可用，客户端通过 API Routes 访问
 
-// Legacy localStorage Keys
+// Legacy localStorage Keys (降级备份)
 const STORAGE_KEY = 'poker-tracker-records';
 const SEASONS_KEY = 'poker-tracker-seasons';
 const CLEARS_KEY = 'poker-tracker-clears';
 const AI_CACHE_KEY = 'poker-tracker-ai-cache';
 
-// ==================== SUPABASE DATA LOADER ====================
-// These functions load data from Supabase and can fallback to localStorage
+// ==================== API HELPER ====================
+async function apiGet(path: string): Promise<unknown> {
+  const res = await fetch(path);
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'API error');
+  return json.data;
+}
+
+async function apiPost(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'API error');
+  return json.data;
+}
+
+async function apiPut(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'API error');
+  return json.data;
+}
+
+async function apiDelete(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(path, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'API error');
+  return json.data;
+}
+
+// ==================== DATA LOADER ====================
 
 export async function loadRecords(): Promise<PokerRecord[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const data = await getAllRecordsFromSupabase();
-    // Convert database format to app format
+    const data = await apiGet('/api/poker-records') as Array<{ date: string; player: string; score: number; win: number }>;
     return data.map(r => ({
       date: r.date,
       player: r.player,
@@ -110,8 +135,7 @@ export async function loadRecords(): Promise<PokerRecord[]> {
       win: r.win as 1 | -1,
     }));
   } catch (e) {
-    console.warn("Failed to load from Supabase, falling back to localStorage", e);
-    // Fallback to localStorage
+    console.warn("Failed to load from API, falling back to localStorage", e);
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw) as PokerRecord[];
@@ -124,32 +148,24 @@ export async function loadRecords(): Promise<PokerRecord[]> {
 
 export async function saveRecords(records: PokerRecord[]): Promise<void> {
   if (typeof window === 'undefined') return;
+  // 保存到 localStorage 作为本地缓存
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
   try {
-    // Save to Supabase
-    await deleteRecordsByDateFromSupabase(records[0]?.date || "");
-    if (records.length > 0) {
-      await insertRecordsToSupabase(
-        records.map(r => ({
-          date: r.date,
-          player: r.player,
-          score: r.score,
-          win: r.win,
-        }))
-      );
-    }
-    // Also save to localStorage as backup
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    await apiPost('/api/poker-records', records.map(r => ({
+      date: r.date,
+      player: r.player,
+      score: r.score,
+      win: r.win,
+    })));
   } catch (e) {
-    console.error("Failed to save to Supabase", e);
-    // Fallback to localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    console.error("Failed to save records to API", e);
   }
 }
 
 export async function loadSeasons(): Promise<Season[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const data = await getAllSeasonsFromSupabase();
+    const data = await apiGet('/api/seasons') as Array<{ id: string; name: string; start_date: string; end_date: string | null; active: boolean }>;
     return data.map(s => ({
       id: s.id,
       name: s.name,
@@ -158,7 +174,7 @@ export async function loadSeasons(): Promise<Season[]> {
       active: s.active,
     }));
   } catch (e) {
-    console.warn("Failed to load seasons from Supabase, falling back to localStorage", e);
+    console.warn("Failed to load seasons from API, falling back to localStorage", e);
     try {
       const raw = localStorage.getItem(SEASONS_KEY);
       if (raw) return JSON.parse(raw) as Season[];
@@ -171,26 +187,25 @@ export async function loadSeasons(): Promise<Season[]> {
 
 export async function saveSeasons(seasons: Season[]): Promise<void> {
   if (typeof window === 'undefined') return;
+  localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
   try {
     for (const s of seasons) {
-      await insertSeasonToSupabase({
+      await apiPost('/api/seasons', {
         name: s.name,
         start_date: s.startDate,
         end_date: s.endDate,
         active: s.active,
       });
     }
-    localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
   } catch (e) {
-    console.error("Failed to save seasons to Supabase", e);
-    localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
+    console.error("Failed to save seasons to API", e);
   }
 }
 
 export async function loadClears(): Promise<ClearRecord[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const data = await getAllClearsFromSupabase();
+    const data = await apiGet('/api/clear-records') as Array<{ id: string; date: string; player: string; amount: number; season_id: string; clear_type: string }>;
     return data.map(c => ({
       id: c.id,
       date: c.date,
@@ -200,7 +215,7 @@ export async function loadClears(): Promise<ClearRecord[]> {
       type: c.clear_type as 'threshold' | 'season_end',
     }));
   } catch (e) {
-    console.warn("Failed to load clears from Supabase, falling back to localStorage", e);
+    console.warn("Failed to load clears from API, falling back to localStorage", e);
     try {
       const raw = localStorage.getItem(CLEARS_KEY);
       if (raw) return JSON.parse(raw) as ClearRecord[];
@@ -214,19 +229,15 @@ export async function loadClears(): Promise<ClearRecord[]> {
 export async function saveClear(record: ClearRecord): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await insertClearRecordToSupabase({
+    await apiPost('/api/clear-records', {
       date: record.date,
       player: record.player,
       amount: record.amount,
       season_id: record.seasonId,
       clear_type: record.type,
     });
-    // Update localStorage
-    const clears = await loadClears();
-    clears.push(record);
-    localStorage.setItem(CLEARS_KEY, JSON.stringify(clears));
   } catch (e) {
-    console.error("Failed to save clear to Supabase", e);
+    console.error("Failed to save clear to API", e);
   }
 }
 
@@ -238,7 +249,7 @@ export function saveClears(clears: ClearRecord[]): void {
 export async function loadAICache(): Promise<AICacheItem[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const data = await getAllAICacheFromSupabase();
+    const data = await apiGet('/api/ai-cache') as Array<{ label: string; prompt: string; result: string; time: string }>;
     return data.map(c => ({
       label: c.label,
       prompt: c.prompt,
@@ -246,7 +257,7 @@ export async function loadAICache(): Promise<AICacheItem[]> {
       time: c.time,
     }));
   } catch (e) {
-    console.warn("Failed to load AI cache from Supabase, falling back to localStorage", e);
+    console.warn("Failed to load AI cache from API, falling back to localStorage", e);
     try {
       const raw = localStorage.getItem(AI_CACHE_KEY);
       if (raw) return JSON.parse(raw) as AICacheItem[];
@@ -260,14 +271,19 @@ export async function loadAICache(): Promise<AICacheItem[]> {
 export async function saveAICacheItem(item: AICacheItem): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await insertAICacheToSupabase({
+    await apiPost('/api/ai-cache', {
       label: item.label,
       prompt: item.prompt,
       result: item.result,
       time: item.time,
     });
-    // Update localStorage
-    const cache = await loadAICache();
+  } catch (e) {
+    console.error("Failed to save AI cache to API", e);
+  }
+  // 也更新 localStorage
+  try {
+    const raw = localStorage.getItem(AI_CACHE_KEY);
+    const cache: AICacheItem[] = raw ? JSON.parse(raw) : [];
     const existingIndex = cache.findIndex(c => c.label === item.label);
     if (existingIndex >= 0) {
       cache[existingIndex] = item;
@@ -275,17 +291,17 @@ export async function saveAICacheItem(item: AICacheItem): Promise<void> {
       cache.push(item);
     }
     localStorage.setItem(AI_CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {
-    console.error("Failed to save AI cache to Supabase", e);
+  } catch {
+    // ignore
   }
 }
 
 export async function endSeason(seasonId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await endSeasonFromSupabase(seasonId);
+    await apiPut('/api/seasons', { id: seasonId, active: false });
   } catch (e) {
-    console.error("Failed to end season in Supabase", e);
+    console.error("Failed to end season via API", e);
   }
 }
 
