@@ -37,26 +37,33 @@ export default function PokerTracker() {
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
 
-  // Load data from localStorage on mount
+  // Load data from Supabase/localStorage on mount
   useEffect(() => {
-    const stored = loadRecords();
-    if (stored.length > 0) {
-      setAllRecords(stored);
-    } else {
-      setAllRecords(SEED_RECORDS);
-      persistRecords(SEED_RECORDS);
-    }
+    async function loadData() {
+      const [stored, storedSeasons, storedClears] = await Promise.all([
+        loadRecords(),
+        loadSeasons(),
+        loadClears(),
+      ]);
+      
+      if (stored.length > 0) {
+        setAllRecords(stored);
+      } else {
+        setAllRecords(SEED_RECORDS);
+        persistRecords(SEED_RECORDS);
+      }
 
-    const storedSeasons = loadSeasons();
-    if (storedSeasons.length > 0) {
-      setSeasons(storedSeasons);
-    } else {
-      setSeasons(SEED_SEASONS);
-      persistSeasons(SEED_SEASONS);
-    }
+      if (storedSeasons.length > 0) {
+        setSeasons(storedSeasons);
+      } else {
+        setSeasons(SEED_SEASONS);
+        persistSeasons(SEED_SEASONS);
+      }
 
-    setClears(loadClears());
-    setLoading(false);
+      setClears(storedClears);
+      setLoading(false);
+    }
+    loadData();
   }, []);
 
   // Get active season and filtered data

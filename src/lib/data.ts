@@ -72,88 +72,220 @@ export interface ComputedStats {
 }
 
 // ==================== STORAGE ====================
+// Supabase Client Functions (async)
+import { 
+  getAllRecordsFromSupabase, 
+  insertRecordsToSupabase, 
+  deleteRecordsByDateFromSupabase,
+  getAllSeasonsFromSupabase,
+  insertSeasonToSupabase,
+  updateSeasonFromSupabase,
+  endSeasonFromSupabase,
+  getAllClearsFromSupabase,
+  insertClearRecordToSupabase,
+  getAllAICacheFromSupabase,
+  insertAICacheToSupabase,
+  updateAICacheFromSupabase,
+  deleteAICacheFromSupabase
+} from "@/storage/database/supabase/crud";
+
+// Legacy localStorage Keys
 const STORAGE_KEY = 'poker-tracker-records';
 const SEASONS_KEY = 'poker-tracker-seasons';
 const CLEARS_KEY = 'poker-tracker-clears';
 const AI_CACHE_KEY = 'poker-tracker-ai-cache';
 
-export function loadRecords(): PokerRecord[] {
+// ==================== SUPABASE DATA LOADER ====================
+// These functions load data from Supabase and can fallback to localStorage
+
+export async function loadRecords(): Promise<PokerRecord[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as PokerRecord[];
-  } catch {
-    // ignore parse errors
+    const data = await getAllRecordsFromSupabase();
+    // Convert database format to app format
+    return data.map(r => ({
+      date: r.date,
+      player: r.player,
+      score: r.score,
+      win: r.win as 1 | -1,
+    }));
+  } catch (e) {
+    console.warn("Failed to load from Supabase, falling back to localStorage", e);
+    // Fallback to localStorage
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw) as PokerRecord[];
+    } catch {
+      // ignore parse errors
+    }
   }
   return [];
 }
 
-export function saveRecords(records: PokerRecord[]): void {
+export async function saveRecords(records: PokerRecord[]): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+    // Save to Supabase
+    await deleteRecordsByDateFromSupabase(records[0]?.date || "");
+    if (records.length > 0) {
+      await insertRecordsToSupabase(
+        records.map(r => ({
+          date: r.date,
+          player: r.player,
+          score: r.score,
+          win: r.win,
+        }))
+      );
+    }
+    // Also save to localStorage as backup
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-  } catch {
-    // ignore storage errors
+  } catch (e) {
+    console.error("Failed to save to Supabase", e);
+    // Fallback to localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
   }
 }
 
-export function loadSeasons(): Season[] {
+export async function loadSeasons(): Promise<Season[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(SEASONS_KEY);
-    if (raw) return JSON.parse(raw) as Season[];
-  } catch {
-    // ignore
+    const data = await getAllSeasonsFromSupabase();
+    return data.map(s => ({
+      id: s.id,
+      name: s.name,
+      startDate: s.start_date,
+      endDate: s.end_date || undefined,
+      active: s.active,
+    }));
+  } catch (e) {
+    console.warn("Failed to load seasons from Supabase, falling back to localStorage", e);
+    try {
+      const raw = localStorage.getItem(SEASONS_KEY);
+      if (raw) return JSON.parse(raw) as Season[];
+    } catch {
+      // ignore
+    }
   }
   return [];
 }
 
-export function saveSeasons(seasons: Season[]): void {
+export async function saveSeasons(seasons: Season[]): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+    for (const s of seasons) {
+      await insertSeasonToSupabase({
+        name: s.name,
+        start_date: s.startDate,
+        end_date: s.endDate,
+        active: s.active,
+      });
+    }
     localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error("Failed to save seasons to Supabase", e);
+    localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
   }
 }
 
-export function loadClears(): ClearRecord[] {
+export async function loadClears(): Promise<ClearRecord[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(CLEARS_KEY);
-    if (raw) return JSON.parse(raw) as ClearRecord[];
-  } catch {
-    // ignore
+    const data = await getAllClearsFromSupabase();
+    return data.map(c => ({
+      id: c.id,
+      date: c.date,
+      player: c.player,
+      amount: c.amount,
+      seasonId: c.season_id,
+      type: c.clear_type as 'threshold' | 'season_end',
+    }));
+  } catch (e) {
+    console.warn("Failed to load clears from Supabase, falling back to localStorage", e);
+    try {
+      const raw = localStorage.getItem(CLEARS_KEY);
+      if (raw) return JSON.parse(raw) as ClearRecord[];
+    } catch {
+      // ignore
+    }
   }
   return [];
 }
 
-export function saveClears(clears: ClearRecord[]): void {
+export async function saveClear(record: ClearRecord): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+    await insertClearRecordToSupabase({
+      date: record.date,
+      player: record.player,
+      amount: record.amount,
+      season_id: record.seasonId,
+      clear_type: record.type,
+    });
+    // Update localStorage
+    const clears = await loadClears();
+    clears.push(record);
     localStorage.setItem(CLEARS_KEY, JSON.stringify(clears));
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error("Failed to save clear to Supabase", e);
   }
 }
 
-export function loadAICache(): AICacheItem[] {
+// Legacy sync function for backward compatibility
+export function saveClears(clears: ClearRecord[]): void {
+  localStorage.setItem(CLEARS_KEY, JSON.stringify(clears));
+}
+
+export async function loadAICache(): Promise<AICacheItem[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(AI_CACHE_KEY);
-    if (raw) return JSON.parse(raw) as AICacheItem[];
-  } catch {
-    // ignore
+    const data = await getAllAICacheFromSupabase();
+    return data.map(c => ({
+      label: c.label,
+      prompt: c.prompt,
+      result: c.result,
+      time: c.time,
+    }));
+  } catch (e) {
+    console.warn("Failed to load AI cache from Supabase, falling back to localStorage", e);
+    try {
+      const raw = localStorage.getItem(AI_CACHE_KEY);
+      if (raw) return JSON.parse(raw) as AICacheItem[];
+    } catch {
+      // ignore
+    }
   }
   return [];
 }
 
-export function saveAICache(cache: AICacheItem[]): void {
+export async function saveAICacheItem(item: AICacheItem): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+    await insertAICacheToSupabase({
+      label: item.label,
+      prompt: item.prompt,
+      result: item.result,
+      time: item.time,
+    });
+    // Update localStorage
+    const cache = await loadAICache();
+    const existingIndex = cache.findIndex(c => c.label === item.label);
+    if (existingIndex >= 0) {
+      cache[existingIndex] = item;
+    } else {
+      cache.push(item);
+    }
     localStorage.setItem(AI_CACHE_KEY, JSON.stringify(cache));
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error("Failed to save AI cache to Supabase", e);
+  }
+}
+
+export async function endSeason(seasonId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await endSeasonFromSupabase(seasonId);
+  } catch (e) {
+    console.error("Failed to end season in Supabase", e);
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ComputedStats, AICacheItem } from "@/lib/data";
-import { loadAICache, saveAICache } from "@/lib/data";
+import { loadAICache, saveAICacheItem } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,12 +54,18 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
 
   // Load cached AI results on mount
   useEffect(() => {
-    setCache(loadAICache());
+    async function loadCache() {
+      const cached = await loadAICache();
+      setCache(cached);
+    }
+    loadCache();
   }, []);
 
-  const persistCache = useCallback((items: AICacheItem[]) => {
+  const persistCache = useCallback(async (items: AICacheItem[]) => {
     setCache(items);
-    saveAICache(items);
+    for (const item of items) {
+      await saveAICacheItem(item);
+    }
   }, []);
 
   const askAI = useCallback(async (prompt: string, label?: string) => {
