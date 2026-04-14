@@ -223,7 +223,7 @@ export async function loadClears(): Promise<ClearRecord[]> {
       // ignore
     }
   }
-  return [];
+  return SEED_CLEARS;
 }
 
 export async function saveClear(record: ClearRecord): Promise<void> {
@@ -336,6 +336,17 @@ export function getPostClearBalance(totalScore: number, clears: ClearRecord[], p
 export const SEED_SEASONS: Season[] = [
   { id: 's1', name: '赛季1', startDate: '2025-10-25', endDate: '2026-04-11', active: false },
   { id: 's2', name: '赛季2', startDate: '2026-04-12', active: true },
+];
+
+// 赛季1已结束，所有正余额玩家在赛季结束时全额清分
+export const SEED_CLEARS: ClearRecord[] = [
+  { id: 'clear-s1-佳', date: '2026-04-11', player: '佳', amount: 31190, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-茄', date: '2026-04-11', player: '茄', amount: 16000, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-锦辉', date: '2026-04-11', player: '锦辉', amount: 6120, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-fafa', date: '2026-04-11', player: 'fafa', amount: 4960, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-卢老师', date: '2026-04-11', player: '卢老师', amount: 2870, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-润年老表', date: '2026-04-11', player: '润年老表', amount: 2220, seasonId: 's1', type: 'season_end' },
+  { id: 'clear-s1-谦', date: '2026-04-11', player: '谦', amount: 1110, seasonId: 's1', type: 'season_end' },
 ];
 
 export const SEED_RECORDS: PokerRecord[] = [

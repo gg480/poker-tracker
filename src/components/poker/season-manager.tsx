@@ -35,7 +35,11 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">🏟️</span> {season.name}
-            {season.active && <Badge className="bg-emerald-500/20 text-emerald-500 text-[10px]">进行中</Badge>}
+            {season.active ? (
+              <Badge className="bg-emerald-500/20 text-emerald-500 text-[10px]">进行中</Badge>
+            ) : (
+              <Badge className="bg-slate-500/20 text-slate-400 text-[10px]">已结束</Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -58,7 +62,7 @@ export function SeasonManager({ season, stats, clears, onClearPlayer, onEndSeaso
             </div>
           </div>
 
-          {playersOverThreshold.length > 0 && (
+          {season.active && playersOverThreshold.length > 0 && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
               <div className="text-sm font-semibold text-amber-500 mb-2">
                 触发清分 ({CLEAR_THRESHOLD}分)

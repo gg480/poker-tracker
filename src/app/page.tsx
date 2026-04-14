@@ -6,7 +6,7 @@ import {
   loadRecords, saveRecords as persistRecords,
   loadSeasons, saveSeasons as persistSeasons,
   loadClears, saveClears as persistClears,
-  SEED_RECORDS, SEED_SEASONS,
+  SEED_RECORDS, SEED_SEASONS, SEED_CLEARS,
   getActiveSeason, getRecordsForSeason, getClearsForSeason,
 } from "@/lib/data";
 import { useStats, computeStats, computeAwards } from "@/lib/stats";
@@ -16,6 +16,7 @@ import { PlayerView } from "@/components/poker/player-view";
 import { AIAnalysis } from "@/components/poker/ai-analysis";
 import { Awards } from "@/components/poker/awards";
 import { SeasonManager } from "@/components/poker/season-manager";
+import { Card, CardContent } from "@/components/ui/card";
 
 const TABS = [
   { key: "overview", label: "总览", icon: "📊" },
@@ -62,7 +63,12 @@ export default function PokerTracker() {
         persistSeasons(SEED_SEASONS);
       }
 
-      setClears(storedClears);
+      if (storedClears.length > 0) {
+        setClears(storedClears);
+      } else {
+        setClears(SEED_CLEARS);
+        persistClears(SEED_CLEARS);
+      }
       setLoading(false);
     }
     loadData();
@@ -82,10 +88,12 @@ export default function PokerTracker() {
     : allRecords;
 
   // Filtered clears based on season selection
+  // "all" = include all clears (for merged balance view)
+  // specific season = only that season's clears
   const filteredClears = useMemo(() =>
     currentSeason
       ? getClearsForSeason(clears, currentSeason.id)
-      : [],
+      : clears,
     [currentSeason, clears]);
 
   const stats = useStats(filteredRecords);
@@ -256,14 +264,22 @@ export default function PokerTracker() {
             onSelect={setSelectedPlayer}
           />
         )}
-        {tab === "season" && activeSeason && (
+        {tab === "season" && currentSeason && (
           <SeasonManager
-            season={activeSeason}
+            season={currentSeason}
             stats={stats}
             clears={filteredClears}
             onClearPlayer={handleClearPlayer}
             onEndSeason={handleEndSeason}
           />
+        )}
+        {tab === "season" && !currentSeason && (
+          <Card className="border-border/50 bg-card/80 backdrop-blur">
+            <CardContent className="py-10 text-center text-muted-foreground">
+              <p className="text-sm">请在上方选择一个赛季查看详情</p>
+              <p className="text-xs mt-1">当前为全部数据视图，赛季管理需选择具体赛季</p>
+            </CardContent>
+          </Card>
         )}
         {tab === "ai" && (
           <AIAnalysis stats={stats} />
