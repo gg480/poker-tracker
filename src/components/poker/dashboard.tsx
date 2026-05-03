@@ -37,8 +37,8 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Dragon Tiger Board - 纯数字列表，适配移动端 */}
-      <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
+      {/* Dragon Tiger Board */}
+      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">🏆</span> 龙虎榜 · 总收支
@@ -80,7 +80,7 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
       </Card>
 
       {/* Cumulative Trend */}
-      <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
+      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">📈</span> 累计积分走势
@@ -105,7 +105,7 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
       </Card>
 
       {/* Win Rate Ranking */}
-      <Card className="border-border/50 bg-card/80 backdrop-blur">
+      <Card className="border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">🎯</span> 胜率排行
@@ -129,7 +129,7 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
       </Card>
 
       {/* Daily Best */}
-      <Card className="border-border/50 bg-card/80 backdrop-blur">
+      <Card className="border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">💎</span> 单日最高记录
@@ -162,7 +162,7 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
       </Card>
 
       {/* Post-Clear Balance Leaderboard */}
-      <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
+      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">💳</span> 清分后余额排行
@@ -230,7 +230,7 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
       </Card>
 
       {/* Recent Games - ALL players sorted by games desc */}
-      <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
+      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">📅</span> 最近场次

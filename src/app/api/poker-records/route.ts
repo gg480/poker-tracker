@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllRecords, getRecordsByDateRange, insertRecords, deleteRecordsByDate } from "@/storage/database/crud-server";
+import { getAllRecords, getRecordsByDateRange, getRecordsBySession, getRecordsBySeason, insertRecords, deleteRecordsByDate } from "@/storage/database/crud";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("start_date");
     const endDate = searchParams.get("end_date");
+    const seasonId = searchParams.get("season_id");
+    const sessionId = searchParams.get("session_id");
 
     let data;
-    if (startDate && endDate) {
-      data = await getRecordsByDateRange(startDate, endDate);
+    if (sessionId) {
+      data = getRecordsBySession(sessionId);
+    } else if (seasonId) {
+      data = getRecordsBySeason(seasonId);
+    } else if (startDate && endDate) {
+      data = getRecordsByDateRange(startDate, endDate);
     } else {
-      data = await getAllRecords();
+      data = getAllRecords();
     }
 
     return NextResponse.json({ success: true, data });
@@ -27,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(records) || records.length === 0) {
       return NextResponse.json({ success: false, error: "Invalid records" }, { status: 400 });
     }
-    const data = await insertRecords(records);
+    const data = insertRecords(records);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -41,7 +47,7 @@ export async function DELETE(request: NextRequest) {
     if (!date) {
       return NextResponse.json({ success: false, error: "Missing date" }, { status: 400 });
     }
-    await deleteRecordsByDate(date);
+    deleteRecordsByDate(date);
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

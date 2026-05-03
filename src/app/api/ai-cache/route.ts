@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllAICache, insertAICache, updateAICache, trimAICache } from "@/storage/database/crud-server";
+import { getAllAICache, insertAICache, updateAICache, trimAICache } from "@/storage/database/crud";
 
 export async function GET() {
   try {
-    const data = await getAllAICache();
+    const data = getAllAICache();
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -14,8 +14,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const cache = await request.json();
-    const data = await insertAICache(cache);
-    await trimAICache(3); // 只保留最新3条
+    const data = insertAICache(cache);
+    trimAICache(3);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { id, result } = await request.json();
-    const data = await updateAICache(id, result);
-    await trimAICache(3); // 只保留最新3条
+    const data = updateAICache(id, result);
+    trimAICache(3);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

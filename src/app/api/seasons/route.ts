@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllSeasons, getActiveSeasons, insertSeason, updateSeason, endSeasonById } from "@/storage/database/crud-server";
+import { getAllSeasons, insertSeason, updateSeason, endSeasonById } from "@/storage/database/crud";
 
 export async function GET() {
   try {
-    const data = await getAllSeasons();
+    const data = getAllSeasons();
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -14,7 +14,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const season = await request.json();
-    const data = await insertSeason(season);
+    const data = insertSeason(season);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { id, ...updates } = await request.json();
-    const data = await updateSeason(id, updates);
+    const data = updateSeason(id, updates);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

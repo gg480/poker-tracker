@@ -1,13 +1,23 @@
-// Drizzle ORM Database Connection (Server-side)
-// 注：这个文件用于服务端数据库操作，目前主要使用 Supabase 客户端
-// 如需使用 Drizzle ORM，请安装: pnpm add postgres && pnpm add -D drizzle-orm
+import Database from "better-sqlite3"
+import { drizzle } from "drizzle-orm/better-sqlite3"
+import * as schema from "./shared/schema"
+import path from "path"
+import fs from "fs"
 
-// 暂时注释掉 drizzle 相关代码，因为 Supabase 客户端已足够
-// import { drizzle } from "drizzle-orm/postgres-js";
-// import postgres from "postgres";
-// import * as schema from "./shared/schema";
+const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), "data", "poker-tracker.db")
 
-// export const db = drizzle(queryClient, { schema });
+const dbDir = path.dirname(DB_PATH)
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true })
+}
 
-// 导出 schema 以便在其他地方使用
-export * from "./shared/schema";
+const sqlite = new Database(DB_PATH)
+
+sqlite.pragma("journal_mode = WAL")
+sqlite.pragma("foreign_keys = ON")
+
+export const db = drizzle(sqlite, { schema })
+
+export type DatabaseType = typeof db
+
+export * from "./shared/schema"

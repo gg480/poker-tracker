@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllClears, getClearsBySeason, insertClearRecord } from "@/storage/database/crud-server";
+import { getAllClears, getClearsBySeason, insertClearRecord } from "@/storage/database/crud";
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,9 +8,9 @@ export async function GET(request: NextRequest) {
 
     let data;
     if (seasonId) {
-      data = await getClearsBySeason(seasonId);
+      data = getClearsBySeason(seasonId);
     } else {
-      data = await getAllClears();
+      data = getAllClears();
     }
 
     return NextResponse.json({ success: true, data });
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const record = await request.json();
-    const data = await insertClearRecord(record);
+    const data = insertClearRecord(record);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -1,5 +1,3 @@
-// Supabase TypeScript 客户端
-import { supabase } from "./supabase/client";
-
-// 导出 supabase 单例供其他模块使用
-export { supabase };
+export { db } from "./drizzle"
+export * from "./crud"
+export { seedDatabase, isSeeded } from "./seed"

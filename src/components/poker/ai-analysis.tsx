@@ -159,7 +159,7 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
+      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="text-lg">🤖</span> AI 分析助手
@@ -231,7 +231,7 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
 
       {/* Cached Preset Results */}
       {cache.length > 0 && (
-        <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
+        <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">

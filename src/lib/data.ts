@@ -103,7 +103,7 @@ export interface ComputedStats {
 
 // ==================== STORAGE ====================
 // 使用 Next.js API Routes 作为数据代理层
-// Supabase 凭证仅在服务端可用，客户端通过 API Routes 访问
+// SQLite 数据库通过 API Routes 访问
 
 // Legacy localStorage Keys (降级备份)
 const STORAGE_KEY = 'poker-tracker-records';
@@ -270,7 +270,7 @@ export async function saveSettlement(settlement: PlayerSettlement): Promise<void
   } catch {
     // ignore
   }
-  // 同步到 Supabase
+  // 同步到 SQLite
   try {
     await apiPost('/api/settlements', {
       player: settlement.player,

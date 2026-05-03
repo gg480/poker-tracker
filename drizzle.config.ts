@@ -1,10 +1,10 @@
-import { defineConfig } from "drizzle-kit";
+import { defineConfig } from "drizzle-kit"
 
 export default defineConfig({
   schema: "./src/storage/database/shared/schema.ts",
   out: "./drizzle",
-  dialect: "postgresql",
+  dialect: "sqlite",
   dbCredentials: {
-    url: "https://integration.coze.cn",
+    url: "./data/poker-tracker.db",
   },
-});
+})

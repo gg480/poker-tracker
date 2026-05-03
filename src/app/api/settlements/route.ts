@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllSettlements, getSettlementsBySeason, upsertSettlement } from "@/storage/database/crud-server";
+import { getAllSettlements, getSettlementsBySeason, upsertSettlement } from "@/storage/database/crud";
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,9 +8,9 @@ export async function GET(request: NextRequest) {
 
     let data;
     if (seasonId) {
-      data = await getSettlementsBySeason(seasonId);
+      data = getSettlementsBySeason(seasonId);
     } else {
-      data = await getAllSettlements();
+      data = getAllSettlements();
     }
 
     return NextResponse.json({ success: true, data });
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const settlement = await request.json();
-    const data = await upsertSettlement(settlement);
+    const data = upsertSettlement(settlement);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
