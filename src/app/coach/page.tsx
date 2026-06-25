@@ -6,7 +6,6 @@ import { useCoachStore } from "@/stores/coach-store"
 import { TrainingLayout } from "@/components/poker/coach/training-layout"
 import { TrainingSettings } from "@/components/poker/coach/training-settings"
 import { History } from "lucide-react"
-import { CoachSkeleton } from "@/components/ui/skeleton-page"
 
 function CoachErrorDisplay({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
