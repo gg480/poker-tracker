@@ -1,22 +1,20 @@
 import { NextRequest } from "next/server";
-import { getAwardsBySeason, insertAwardRecord, insertAwardRecords, updateAwardRecord, deleteAwardRecord, deleteAwardRecordsBySeason } from "@/storage/database/crud";
+import { getAwardsBySeason, getAwardsPaginated, insertAwardRecord, insertAwardRecords, updateAwardRecord, deleteAwardRecord, deleteAwardRecordsBySeason } from "@/storage/database/crud";
 import {
   createAwardRecordOrRecordsSchema,
   deleteAwardRecordSchema,
   updateAwardRecordSchema,
+  parsePaginationParams,
 } from "../_validators";
 import { respond, respondWithParse, badRequestResponse } from "@/services/crud-service";
 
 export function GET(request: NextRequest) {
   return respond(() => {
     const { searchParams } = new URL(request.url);
-    const seasonId = searchParams.get("season_id");
+    const seasonId = searchParams.get("season_id") || undefined;
+    const { page, limit } = parsePaginationParams(searchParams);
 
-    if (!seasonId) {
-      return badRequestResponse("Missing season_id");
-    }
-
-    return getAwardsBySeason(seasonId);
+    return getAwardsPaginated(seasonId, page, limit);
   });
 }
 
