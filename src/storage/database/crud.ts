@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, desc, asc, count, inArray } from "drizzle-orm"
+import { eq, and, gte, lte, desc, asc, count, inArray, sql } from "drizzle-orm"
 import { db } from "./drizzle"
 import {
   seasons,
@@ -154,6 +154,33 @@ export function getSessionsPaginated(seasonId?: string, page: number = 1, limit:
   return { items, total, page, limit, totalPages: Math.ceil(total / limit) }
 }
 
+/**
+ * Recalculate gameSessions.totalRecords and totalScore from the source of truth
+ * (pokerRecords table), bringing the denormalized cache back in sync.
+ *
+ * Called automatically by insertRecord, insertRecords, updatePokerRecord,
+ * deletePokerRecord, deleteRecordsBySession, and deleteRecordsByDate.
+ */
+function syncSessionCounters(sessionId: string) {
+  const agg = db
+    .select({
+      totalRecords: sql<number>`count(*)`,
+      totalScore: sql<number>`coalesce(sum(${pokerRecords.score}), 0)`,
+    })
+    .from(pokerRecords)
+    .where(eq(pokerRecords.sessionId, sessionId))
+    .get()
+
+  db.update(gameSessions)
+    .set({
+      totalRecords: agg?.totalRecords ?? 0,
+      totalScore: agg?.totalScore ?? 0,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(gameSessions.id, sessionId))
+    .run()
+}
+
 // ==================== Poker Records ====================
 
 export function getAllRecords() {
@@ -188,23 +215,58 @@ export function getRecordsBySeason(seasonId: string) {
 }
 
 export function insertRecord(record: Omit<InsertPokerRecord, "id" | "createdAt">) {
-  return db.insert(pokerRecords).values(record).returning().get()
+  const result = db.insert(pokerRecords).values(record).returning().get()
+  if (result.sessionId) {
+    syncSessionCounters(result.sessionId)
+  }
+  return result
 }
 
 export function insertRecords(records: Omit<InsertPokerRecord, "id" | "createdAt">[]) {
-  return db.insert(pokerRecords).values(records).returning().all()
+  const result = db.insert(pokerRecords).values(records).returning().all()
+  const sessionIds = [...new Set(result.map((r) => r.sessionId).filter(Boolean) as string[])]
+  for (const sessionId of sessionIds) {
+    syncSessionCounters(sessionId)
+  }
+  return result
 }
 
 export function deleteRecordsByDate(date: string) {
-  return db.delete(pokerRecords).where(eq(pokerRecords.date, date)).run()
+  // Capture affected sessionIds before deleting, so we can sync counters
+  const affectedSessions = db
+    .select({ sessionId: pokerRecords.sessionId })
+    .from(pokerRecords)
+    .where(eq(pokerRecords.date, date))
+    .all()
+    .map((r) => r.sessionId)
+    .filter(Boolean) as string[]
+
+  const uniqueSessionIds = [...new Set(affectedSessions)]
+
+  const result = db.delete(pokerRecords).where(eq(pokerRecords.date, date)).run()
+
+  for (const sessionId of uniqueSessionIds) {
+    syncSessionCounters(sessionId)
+  }
+
+  return result
 }
 
 export function deleteRecordsBySession(sessionId: string) {
-  return db.delete(pokerRecords).where(eq(pokerRecords.sessionId, sessionId)).run()
+  const result = db.delete(pokerRecords).where(eq(pokerRecords.sessionId, sessionId)).run()
+  db.update(gameSessions)
+    .set({ totalRecords: 0, totalScore: 0, updatedAt: new Date().toISOString() })
+    .where(eq(gameSessions.id, sessionId))
+    .run()
+  return result
 }
 
 export function updatePokerRecord(id: string, updates: Partial<Omit<InsertPokerRecord, "id" | "createdAt" | "updatedAt">>) {
-  return db.update(pokerRecords).set({ ...updates, updatedAt: new Date().toISOString() }).where(eq(pokerRecords.id, id)).returning().get()
+  const result = db.update(pokerRecords).set({ ...updates, updatedAt: new Date().toISOString() }).where(eq(pokerRecords.id, id)).returning().get()
+  if (result?.sessionId) {
+    syncSessionCounters(result.sessionId)
+  }
+  return result
 }
 
 export function getPokerRecordById(id: string) {
@@ -212,7 +274,12 @@ export function getPokerRecordById(id: string) {
 }
 
 export function deletePokerRecord(id: string) {
-  return db.delete(pokerRecords).where(eq(pokerRecords.id, id)).returning().get()
+  const record = getPokerRecordById(id)
+  const result = db.delete(pokerRecords).where(eq(pokerRecords.id, id)).returning().get()
+  if (record?.sessionId) {
+    syncSessionCounters(record.sessionId)
+  }
+  return result
 }
 
 export function getRecordsPaginated(

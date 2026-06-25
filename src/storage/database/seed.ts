@@ -78,6 +78,7 @@ export function seedDatabase() {
         seasonId,
         status: "confirmed",
         totalRecords: dateRecords.length,
+        totalScore: dateRecords.reduce((sum, r) => sum + r.score, 0),
         createdAt: now,
         updatedAt: now,
       }).onConflictDoNothing().run()

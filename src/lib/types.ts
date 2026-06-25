@@ -35,6 +35,7 @@ export interface GameSession {
   seasonId: string
   status: "pending" | "collected" | "confirmed"
   totalRecords: number
+  totalScore: number
   createdAt: string
   updatedAt?: string
 }

@@ -61,12 +61,14 @@ export function addPlayerEntry(
   })
 
   const newTotal = existingRecords.length + 1
+  const newTotalScore = (session.totalScore || 0) + score
   const allPlayersEntered = newTotal >= MIN_SESSION_PLAYERS
   const newStatus = allPlayersEntered ? SESSION_STATUS.COLLECTED : SESSION_STATUS.PENDING
 
   const updated = updateSession(sessionId, {
     status: newStatus,
     totalRecords: newTotal,
+    totalScore: newTotalScore,
   })
 
   return { session: updated as GameSession, success: true }
@@ -107,11 +109,13 @@ export function addBatchEntries(
   insertRecords(records)
 
   const newTotal = validEntries.length
+  const newTotalScore = (session.totalScore || 0) + totalScore
   const newStatus = newTotal >= MIN_SESSION_PLAYERS ? SESSION_STATUS.COLLECTED : SESSION_STATUS.PENDING
 
   const updated = updateSession(sessionId, {
     status: newStatus,
     totalRecords: newTotal,
+    totalScore: newTotalScore,
   })
 
   return { session: updated as GameSession, warnings }

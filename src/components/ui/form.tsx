@@ -45,13 +45,21 @@ const FormField = <
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext)
   const itemContext = React.useContext(FormItemContext)
-  const { getFieldState } = useFormContext()
-  const formState = useFormState({ name: fieldContext.name })
-  const fieldState = getFieldState(fieldContext.name, formState)
+  const formContext = useFormContext()
 
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>")
   }
+  if (!formContext) {
+    throw new Error(
+      "useFormField should be used within a <Form> (FormProvider). " +
+        "Wrap your form with <Form {...form}> to provide form context."
+    )
+  }
+
+  const { getFieldState } = formContext
+  const formState = useFormState({ name: fieldContext.name })
+  const fieldState = getFieldState(fieldContext.name, formState)
 
   const { id } = itemContext
 
@@ -147,6 +155,7 @@ function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="form-message"
       id={formMessageId}
+      role="alert"
       className={cn("text-destructive text-sm", className)}
       {...props}
     >

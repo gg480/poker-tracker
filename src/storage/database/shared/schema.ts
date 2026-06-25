@@ -24,17 +24,21 @@ export const seasons = sqliteTable(
 /**
  * gameSessions tracks individual poker session dates.
  *
- * NOTE: `totalRecords` is a **denormalized aggregate** — it stores the count of
- * pokerRecords linked to this session. Callers that insert/delete/update
- * pokerRecords linked to a session MUST also update gameSessions.totalRecords
- * (and eventually totalScore if added) to keep the cache consistent. At time of
- * writing, `totalScore` is NOT yet present as a column; it is tracked as a
- * future denormalized field.
+ * NOTE: `totalRecords` and `totalScore` are **denormalized aggregates** —
+ * they store the count of pokerRecords and the sum of their scores for this
+ * session. Callers that insert/delete/update pokerRecords linked to a session
+ * MUST also update gameSessions.totalRecords and gameSessions.totalScore to
+ * keep the cache consistent.
  *
- * The seed function (seed.ts) does set totalRecords correctly on initial
- * insert, but the individual CRUD helpers in crud.ts (insertRecord,
- * deletePokerRecord, etc.) do NOT yet auto-update this counter — that is a
- * known gap (P2).
+ * All pokerRecord CRUD helpers in crud.ts (insertRecord, insertRecords,
+ * updatePokerRecord, deletePokerRecord, deleteRecordsBySession,
+ * deleteRecordsByDate) now auto-sync these counters via syncSessionCounters().
+ * The seed function (seed.ts) also sets both aggregates correctly on initial
+ * insert.
+ *
+ * If you bypass crud.ts and modify pokerRecords directly (e.g. via raw SQL or
+ * drizzle queries outside crud.ts), you must call syncSessionCounters() or
+ * update the session row manually.
  */
 export const gameSessions = sqliteTable(
   "game_sessions",
@@ -44,7 +48,7 @@ export const gameSessions = sqliteTable(
     seasonId: text("season_id").notNull().references(() => seasons.id, { onDelete: "cascade" }),
     status: text("status", { length: 20 }).notNull().default("pending"),
     totalRecords: integer("total_records").notNull().default(0),
-    /** If totalScore is added in the future, it belongs here as a denormalized sum of pokerRecords.score for this session. */
+    totalScore: integer("total_score").notNull().default(0),
     notes: text("notes"),
     createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
     updatedAt: text("updated_at").notNull().$defaultFn(() => new Date().toISOString()),
