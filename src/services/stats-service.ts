@@ -1,10 +1,28 @@
-import type { PokerRecord, PlayerSettlement, ComputedStats, PlayerStats } from "@/lib/types"
+// ========================================================================
+// stats-service.ts — Live / current-season player statistics
+//
+// BOUNDARY (vs statistics-service.ts):
+//   stats-service       → "live" stats for UI: nemeses/allies, trends,
+//                          season comparison, attendance, clear board.
+//                          Input: raw PokerRecord[] / PlayerSettlement[].
+//   statistics-service  → "analytics" for reports: rankings, season
+//                          summaries, trends, head-to-head, streaks,
+//                          consistency. Input: PokerRecord[].
+//
+// Both services read from PokerRecord[] and compute player aggregates
+// independently. statistics-service uses its own buildPlayerAggMap;
+// stats-service delegates to computeStats from @/lib/stats. The two
+// aggregation helpers produce similar but not identical PlayerAgg maps.
+// ========================================================================
+
+import type { PokerRecord, PlayerSettlement, PlayerStats } from "@/lib/types"
 import { computeStats } from "@/lib/stats"
+import { TOP_N_MEDAL } from "@/lib/constants"
 
 export function computePlayerStats(
   playerName: string,
   records: PokerRecord[],
-  settlements: PlayerSettlement[]
+  _settlements?: PlayerSettlement[],
 ): {
   basic: PlayerStats | null
   seasonBreakdown: { seasonId: string; total: number; games: number; winRate: string }[]
@@ -21,7 +39,7 @@ export function computePlayerStats(
   const playerRecords = records.filter((r) => r.player === playerName)
   const seasonMap: Record<string, { total: number; games: number; wins: number }> = {}
   for (const r of playerRecords) {
-    const sid = (r as any).seasonId || "unknown"
+    const sid = r.seasonId || "unknown"
     if (!seasonMap[sid]) seasonMap[sid] = { total: 0, games: 0, wins: 0 }
     seasonMap[sid].total += r.score
     seasonMap[sid].games++
@@ -66,12 +84,12 @@ export function computePlayerStats(
   const nemeses = Object.entries(coPlayerScores)
     .map(([player, netScore]) => ({ player, netScore: Math.round(netScore / (coPlayerGames[player] || 1)) }))
     .sort((a, b) => a.netScore - b.netScore)
-    .slice(0, 3)
+    .slice(0, TOP_N_MEDAL)
 
   const allies = Object.entries(coPlayerScores)
     .map(([player, netScore]) => ({ player, netScore: Math.round(netScore / (coPlayerGames[player] || 1)) }))
     .sort((a, b) => b.netScore - a.netScore)
-    .slice(0, 3)
+    .slice(0, TOP_N_MEDAL)
 
   return { basic: player, seasonBreakdown, recentTrend, nemeses, allies }
 }

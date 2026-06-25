@@ -2,8 +2,8 @@
 
 import { useMemo } from "react"
 import type { ComputedStats, PlayerSettlement } from "@/lib/types"
-import { computeExtendedAwards, AWARD_DEFINITIONS } from "@/services/award-service"
-import { AWARD_CATEGORIES } from "@/lib/constants"
+import { computeExtendedAwards } from "@/services/award-service"
+import { AWARD_CATEGORIES, MIN_GAMES_FOR_AWARD } from "@/lib/constants"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface AwardsPageProps {
@@ -43,10 +43,20 @@ export function AwardsPage({ stats, settlements, onPlayerClick }: AwardsPageProp
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            基于 ≥{AWARD_DEFINITIONS[0].compute.toString().includes("MIN_GAMES") ? 5 : 5} 场以上数据评选
+            基于 ≥{MIN_GAMES_FOR_AWARD} 场以上数据评选
           </p>
         </CardContent>
       </Card>
+
+      {awards.length === 0 && (
+        <Card className="border-border/40 bg-card/60 backdrop-blur">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground/60">
+            <span className="text-4xl mb-3 opacity-30">🏅</span>
+            <p className="text-sm">暂无奖项数据</p>
+            <p className="text-xs mt-1">当玩家参与 ≥{MIN_GAMES_FOR_AWARD} 场后将自动评选奖项</p>
+          </CardContent>
+        </Card>
+      )}
 
       {Object.entries(CATEGORY_CONFIG).map(([category, config]) => {
         const categoryAwards = groupedAwards[category]
@@ -64,10 +74,13 @@ export function AwardsPage({ stats, settlements, onPlayerClick }: AwardsPageProp
                 {categoryAwards.map((award) => (
                   <div
                     key={award.key}
-                    className={`flex items-center gap-3 p-3 rounded-lg border ${config.borderColor} bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors`}
+                    role="button"
+                    tabIndex={onPlayerClick ? 0 : undefined}
+                    className={`flex items-center gap-3 p-3 rounded-lg border ${config.borderColor} bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2`}
                     onClick={() => onPlayerClick?.(award.winner)}
+                    onKeyDown={onPlayerClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlayerClick(award.winner) } } : undefined}
                   >
-                    <span className="text-2xl">{award.icon}</span>
+                    <span className="text-2xl" aria-hidden="true">{award.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{award.title}</div>
                       <div className="text-xs text-muted-foreground">{award.description}</div>

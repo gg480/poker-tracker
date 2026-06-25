@@ -1,0 +1,71 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]: ♠♥♦♣
+          - heading "德扑积分榜" [level=1] [ref=e30]
+        - generic [ref=e31]:
+          - generic [ref=e32]: 7 场
+          - generic [ref=e33]: 11 人
+    - generic [ref=e35]:
+      - button "全部" [ref=e36]
+      - button "赛季2" [ref=e37]: 赛季2
+      - button "赛季1" [ref=e39]
+    - main [ref=e40]:
+      - generic [ref=e1150]:
+        - generic [ref=e1151]:
+          - generic [ref=e1153]:
+            - generic [ref=e1154]: 👤
+            - text: 个人设置
+          - generic [ref=e1156]:
+            - generic [ref=e1157]: 默认玩家名（录入时自动填充）
+            - generic [ref=e1158]:
+              - textbox "输入你的玩家名" [ref=e1159]
+              - button "保存" [ref=e1160]
+        - generic [ref=e1161]:
+          - generic [ref=e1163]:
+            - generic [ref=e1164]: 🏟️
+            - text: 赛季管理
+          - generic [ref=e1165]:
+            - generic [ref=e1166]:
+              - generic [ref=e1167]:
+                - generic [ref=e1168]: 赛季2
+                - generic [ref=e1169]: 2026-04-12 ~ 进行中
+              - button "结束赛季" [ref=e1170]
+            - generic [ref=e1171]:
+              - textbox "新赛季名称" [ref=e1172]
+              - button "创建" [ref=e1173]
+            - generic [ref=e1175]:
+              - generic [ref=e1176]: 赛季1
+              - generic [ref=e1177]: 2025-10-25 ~ 2026-04-11
+        - generic [ref=e1178]:
+          - generic [ref=e1180]:
+            - generic [ref=e1181]: 💾
+            - text: 数据备份
+          - generic [ref=e1182]:
+            - generic [ref=e1183]:
+              - button "📤 导出 JSON" [ref=e1184]
+              - generic [ref=e1186] [cursor=pointer]: 📥 导入 JSON
+            - paragraph [ref=e1187]: 导出包含所有赛季、记录、结算数据的完整备份
+    - navigation [ref=e632]:
+      - button "🏠 首页" [ref=e633]:
+        - generic [ref=e635]: 🏠
+        - generic [ref=e636]: 首页
+      - button "✏️ 记录" [ref=e637]:
+        - generic [ref=e638]: ✏️
+        - generic [ref=e639]: 记录
+      - button "🏆 排行" [ref=e640]:
+        - generic [ref=e641]: 🏆
+        - generic [ref=e642]: 排行
+      - button "🃏 手牌" [ref=e643]:
+        - generic [ref=e644]: 🃏
+        - generic [ref=e645]: 手牌
+      - button "👤 我的" [active] [ref=e646]:
+        - generic [ref=e647]: 👤
+        - generic [ref=e648]: 我的
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e654] [cursor=pointer]:
+    - img [ref=e655]
+  - alert [ref=e25]
+  - generic [ref=e658]: "25"

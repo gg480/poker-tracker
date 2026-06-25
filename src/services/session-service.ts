@@ -8,10 +8,10 @@ import {
   getRecordsBySession,
   insertRecord,
   insertRecords,
-  deleteRecordsBySession,
+  getAllSessions,
 } from "@/storage/database/crud"
-import type { GameSession, SessionEntry } from "@/lib/types"
-import { SESSION_STATUS } from "@/lib/constants"
+import type { GameSession, PokerRecord, SessionEntry } from "@/lib/types"
+import { MIN_SESSION_PLAYERS, SESSION_STATUS } from "@/lib/constants"
 
 export function findOrCreateSession(date: string, seasonId: string): GameSession {
   const existing = getSessionByDateAndSeason(date, seasonId)
@@ -61,7 +61,7 @@ export function addPlayerEntry(
   })
 
   const newTotal = existingRecords.length + 1
-  const allPlayersEntered = newTotal >= 2
+  const allPlayersEntered = newTotal >= MIN_SESSION_PLAYERS
   const newStatus = allPlayersEntered ? SESSION_STATUS.COLLECTED : SESSION_STATUS.PENDING
 
   const updated = updateSession(sessionId, {
@@ -107,7 +107,7 @@ export function addBatchEntries(
   insertRecords(records)
 
   const newTotal = validEntries.length
-  const newStatus = newTotal >= 2 ? SESSION_STATUS.COLLECTED : SESSION_STATUS.PENDING
+  const newStatus = newTotal >= MIN_SESSION_PLAYERS ? SESSION_STATUS.COLLECTED : SESSION_STATUS.PENDING
 
   const updated = updateSession(sessionId, {
     status: newStatus,
@@ -128,11 +128,34 @@ export function validateSession(sessionId: string): {
   const players = records.map((r) => r.player)
 
   return {
-    valid: totalScore === 0 && records.length >= 2,
+    valid: totalScore === 0 && records.length >= MIN_SESSION_PLAYERS,
     totalScore,
     recordCount: records.length,
     players,
   }
+}
+
+export function collectSession(sessionId: string): GameSession {
+  const session = getSessionById(sessionId)
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found`)
+  }
+  if (session.status !== SESSION_STATUS.PENDING) {
+    throw new Error(`Cannot collect: session is in "${session.status}" state, expected "pending"`)
+  }
+
+  const validation = validateSession(sessionId)
+  if (!validation.valid) {
+    throw new Error(
+      `Cannot collect: total score is ${validation.totalScore} (must be 0), or insufficient players (${validation.recordCount})`
+    )
+  }
+
+  const updated = updateSession(sessionId, {
+    status: SESSION_STATUS.COLLECTED,
+  })
+
+  return updated as GameSession
 }
 
 export function confirmSession(sessionId: string): GameSession {
@@ -142,6 +165,11 @@ export function confirmSession(sessionId: string): GameSession {
   }
   if (session.status === SESSION_STATUS.CONFIRMED) {
     throw new Error("Session is already confirmed")
+  }
+  if (session.status !== SESSION_STATUS.COLLECTED) {
+    throw new Error(
+      `Cannot confirm: session is in "${session.status}" state, expected "collected"`
+    )
   }
 
   const validation = validateSession(sessionId)
@@ -158,26 +186,42 @@ export function confirmSession(sessionId: string): GameSession {
   return updated as GameSession
 }
 
-export function deleteSessionById(sessionId: string): boolean {
-  try {
-    crudDeleteSession(sessionId)
-    return true
-  } catch {
-    return false
+export function revertToCollected(sessionId: string): GameSession {
+  const session = getSessionById(sessionId)
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found`)
   }
+  if (session.status !== SESSION_STATUS.CONFIRMED) {
+    throw new Error(
+      `Cannot revert: session is in "${session.status}" state, expected "confirmed"`
+    )
+  }
+
+  const updated = updateSession(sessionId, {
+    status: SESSION_STATUS.COLLECTED,
+  })
+
+  return updated as GameSession
+}
+
+export function deleteSessionById(sessionId: string): void {
+  const session = getSessionById(sessionId)
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found`)
+  }
+  crudDeleteSession(sessionId)
 }
 
 export function getSessions(seasonId?: string): GameSession[] {
   if (seasonId) {
     return getSessionsBySeason(seasonId) as GameSession[]
   }
-  const { getAllSessions } = require("@/storage/database/crud")
   return getAllSessions() as GameSession[]
 }
 
 export function getSessionDetail(sessionId: string): {
   session: GameSession | null
-  records: any[]
+  records: PokerRecord[]
   validation: ReturnType<typeof validateSession> | null
 } {
   const session = getSessionById(sessionId) as GameSession | null
@@ -185,7 +229,7 @@ export function getSessionDetail(sessionId: string): {
     return { session: null, records: [], validation: null }
   }
 
-  const records = getRecordsBySession(sessionId)
+  const records = getRecordsBySession(sessionId) as PokerRecord[]
   const validation = validateSession(sessionId)
 
   return { session, records, validation }

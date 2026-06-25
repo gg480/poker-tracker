@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import type { ShareCardData } from "@/services/share-service"
+import type { ShareCardData } from "@/lib/types"
 import { downloadShareImage } from "@/services/share-service"
 import { ShareCard } from "./share-card"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,10 @@ export function ShareButton({ data, open, onOpenChange }: ShareButtonProps) {
     try {
       const filename = `poker-${data?.date || "session"}-${Date.now()}.png`
       await downloadShareImage("share-card", filename)
+    } catch {
+      // Show a toast notification so the user knows the download didn't work
+      const { toast } = await import("sonner")
+      toast.error("保存图片失败，请重试")
     } finally {
       setDownloading(false)
     }

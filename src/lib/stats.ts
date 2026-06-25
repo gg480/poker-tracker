@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import type { PokerRecord, ComputedStats, PlayerStats, CumulativePoint, TrendPoint, DailyBest, PlayerSettlement } from "./data";
+import type { PokerRecord, ComputedStats, PlayerStats, CumulativePoint, TrendPoint, DailyBest } from "./types";
+import { WIN_RATE_SCALE } from "./constants";
 
 export function computeStats(records: PokerRecord[]): ComputedStats {
   const playerMap: Record<string, {
@@ -48,9 +48,11 @@ export function computeStats(records: PokerRecord[]): ComputedStats {
       }
     }
 
+    // Destructure to avoid leaking intermediate Set/Map into PlayerStats output
+    const { dates: _dates, dateRecords: _dateRecords, ...rest } = p;
     return {
-      ...p,
-      winRate: p.games > 0 ? (p.wins / p.games * 100).toFixed(1) : "0",
+      ...rest,
+      winRate: p.games > 0 ? Math.round(p.wins / p.games * WIN_RATE_SCALE) : 0,
       avgScore: p.games > 0 ? Math.round(p.total / p.games) : 0,
       sessionCount: p.dates.size,
       longestWinStreak: longestStreak,
@@ -106,141 +108,10 @@ export function computeStats(records: PokerRecord[]): ComputedStats {
   };
 }
 
-export function useStats(records: PokerRecord[]): ComputedStats {
-  return useMemo(() => computeStats(records), [records]);
-}
-
 // Chart color palette
-export const CHART_COLORS = [
-  '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16',
-  '#e11d48', '#a855f7', '#0ea5e9',
-];
+// Re-exported from constants.ts for backward compatibility.
+// New code should import from @/lib/constants instead.
+export { CHART_COLORS } from './constants';
 
-// ==================== AWARDS ====================
-export interface Award {
-  key: string;
-  title: string;
-  icon: string;
-  description: string;
-  winner: string;
-  value: string;
-}
-
-export function computeAwards(stats: ComputedStats, settlements: PlayerSettlement[]): Award[] {
-  const eligible = stats.players.filter(p => p.games >= 1);
-  if (eligible.length === 0) return [];
-
-  // 1. 🏆 赛季MVP - 最高累计积分
-  const mvp = [...eligible].sort((a, b) => b.total - a.total)[0];
-
-  // 2. 💰 日进斗金 - 单日最高得分
-  const dailyBest = [...eligible].sort((a, b) => b.maxWin - a.maxWin)[0];
-
-  // 3. 📈 常胜将军 - 最高胜率(≥5场)
-  const winRateEligible = eligible.filter(p => p.games >= 5);
-  const general = winRateEligible.length > 0
-    ? [...winRateEligible].sort((a, b) => Number(b.winRate) - Number(a.winRate))[0]
-    : eligible[0];
-
-  // 4. 🔥 势如破竹 - 最长连胜
-  const streak = [...eligible].sort((a, b) => b.longestWinStreak - a.longestWinStreak)[0];
-
-  // 5. 💎 场均之王 - 场均最高(≥5场)
-  const avgKing = winRateEligible.length > 0
-    ? [...winRateEligible].sort((a, b) => b.avgScore - a.avgScore)[0]
-    : eligible[0];
-
-  // 6. 🎯 铁人奖 - 出勤最多(参与局数)
-  const ironman = [...eligible].sort((a, b) => b.sessionCount - a.sessionCount)[0];
-
-  // 7. 🎲 大起大落 - 波动最大(标准差)
-  const volatile = [...eligible].sort((a, b) => {
-    const stdA = standardDeviation(a.scores);
-    const stdB = standardDeviation(b.scores);
-    return stdB - stdA;
-  })[0];
-
-  // 8. 🤝 散财童子 - 请吃饭清分最多(settleScore最高)
-  const settleMap: Record<string, number> = {};
-  for (const s of settlements) {
-    settleMap[s.player] = (settleMap[s.player] || 0) + s.settleScore;
-  }
-  const benefactor = Object.keys(settleMap).length > 0
-    ? Object.entries(settleMap).sort((a, b) => b[1] - a[1])[0][0]
-    : '暂无';
-
-  return [
-    {
-      key: 'mvp',
-      title: '赛季MVP',
-      icon: '🏆',
-      description: '最高累计积分',
-      winner: mvp.name,
-      value: `${mvp.total > 0 ? '+' : ''}${mvp.total.toLocaleString()}`,
-    },
-    {
-      key: 'dailyBest',
-      title: '日进斗金',
-      icon: '💰',
-      description: '单日最高得分',
-      winner: dailyBest.name,
-      value: `+${dailyBest.maxWin.toLocaleString()}`,
-    },
-    {
-      key: 'general',
-      title: '常胜将军',
-      icon: '📈',
-      description: '最高胜率(≥5场)',
-      winner: general.name,
-      value: `${general.winRate}%`,
-    },
-    {
-      key: 'streak',
-      title: '势如破竹',
-      icon: '🔥',
-      description: '最长连胜记录',
-      winner: streak.name,
-      value: `${streak.longestWinStreak}连`,
-    },
-    {
-      key: 'avgKing',
-      title: '场均之王',
-      icon: '💎',
-      description: '场均得分最高(≥5场)',
-      winner: avgKing.name,
-      value: `${avgKing.avgScore > 0 ? '+' : ''}${avgKing.avgScore.toLocaleString()}`,
-    },
-    {
-      key: 'ironman',
-      title: '铁人奖',
-      icon: '🎯',
-      description: '出勤场次最多',
-      winner: ironman.name,
-      value: `${ironman.sessionCount}场`,
-    },
-    {
-      key: 'volatile',
-      title: '大起大落',
-      icon: '🎲',
-      description: '波动最大(标准差)',
-      winner: volatile.name,
-      value: `σ=${Math.round(standardDeviation(volatile.scores)).toLocaleString()}`,
-    },
-    {
-      key: 'benefactor',
-      title: '散财童子',
-      icon: '🤝',
-      description: '请吃饭清分最多',
-      winner: benefactor,
-      value: `${(settleMap[benefactor] || 0).toLocaleString()}分`,
-    },
-  ];
-}
-
-function standardDeviation(arr: number[]): number {
-  if (arr.length === 0) return 0;
-  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-  const squareDiffs = arr.map(v => (v - mean) ** 2);
-  return Math.sqrt(squareDiffs.reduce((a, b) => a + b, 0) / arr.length);
-}
+// Award logic has been migrated to @/services/award-service.
+// See award-service.ts for: computeExtendedAwards, AWARD_DEFINITIONS, AwardDefinition.

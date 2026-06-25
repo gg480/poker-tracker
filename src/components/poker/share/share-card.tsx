@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import type { ShareCardData } from "@/services/share-service"
+import type { ShareCardData } from "@/lib/types"
 import { getMvp } from "@/services/share-service"
 import { APP_NAME, APP_SLOGAN } from "@/lib/constants"
 
@@ -58,9 +58,9 @@ export function ShareCard({ data }: ShareCardProps) {
             }`}
           >
             <div className="flex items-center gap-2">
-              {i === 0 && <span className="text-sm">🥇</span>}
-              {i === 1 && <span className="text-sm">🥈</span>}
-              {i === 2 && <span className="text-sm">🥉</span>}
+              {i === 0 && <span className="text-sm" aria-hidden="true">🥇</span>}
+              {i === 1 && <span className="text-sm" aria-hidden="true">🥈</span>}
+              {i === 2 && <span className="text-sm" aria-hidden="true">🥉</span>}
               {i > 2 && (
                 <span className="w-5 text-center text-xs text-muted-foreground">
                   {i + 1}
@@ -88,7 +88,7 @@ export function ShareCard({ data }: ShareCardProps) {
 
       {mvp && (
         <div className="text-center mb-3 py-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
-          <span className="text-xs text-amber-400">🏆 MVP</span>
+          <span className="text-xs text-amber-400" aria-hidden="true">🏆</span><span className="text-xs text-amber-400"> MVP</span>
           <span className="ml-2 text-sm font-medium">{mvp.player}</span>
           <span className="ml-1 text-xs text-emerald-400 font-mono">
             +{mvp.score}

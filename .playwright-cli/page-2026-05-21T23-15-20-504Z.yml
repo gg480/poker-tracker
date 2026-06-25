@@ -1,0 +1,216 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]: ♠♥♦♣
+          - heading "德扑积分榜" [level=1] [ref=e30]
+        - generic [ref=e31]:
+          - generic [ref=e32]: 7 场
+          - generic [ref=e33]: 11 人
+    - generic [ref=e35]:
+      - button "全部" [ref=e36]
+      - button "赛季2" [ref=e37]: 赛季2
+      - button "赛季1" [ref=e39]
+    - main [ref=e40]:
+      - generic [ref=e659]:
+        - generic [ref=e660]:
+          - generic [ref=e661]:
+            - generic [ref=e664]:
+              - generic [ref=e665]: ✏️
+              - text: 多人协作录入
+            - generic [ref=e666]:
+              - generic [ref=e667]:
+                - generic [ref=e668]:
+                  - generic [ref=e669]: 日期
+                  - textbox [ref=e670]: 2026-05-21
+                - button "创建场次" [ref=e671]
+                - button "一键添加全部玩家" [ref=e672]
+              - generic [ref=e673]:
+                - generic [ref=e674]:
+                  - generic [ref=e675] [cursor=pointer]: + 卢老师
+                  - generic [ref=e676] [cursor=pointer]: + 佳
+                  - generic [ref=e677] [cursor=pointer]: + 杰仔
+                  - generic [ref=e678] [cursor=pointer]: + 锦辉
+                  - generic [ref=e679] [cursor=pointer]: + 柱
+                  - generic [ref=e680] [cursor=pointer]: + 茄
+                  - generic [ref=e681] [cursor=pointer]: + 达
+                  - generic [ref=e682] [cursor=pointer]: + 志
+                  - generic [ref=e683] [cursor=pointer]: + 谦
+                  - generic [ref=e684] [cursor=pointer]: + 润
+                  - generic [ref=e685] [cursor=pointer]: + 楠
+                - generic [ref=e686]:
+                  - generic [ref=e687]: 快捷选人（点击添加玩家到列表）
+                  - generic [ref=e688]:
+                    - generic [ref=e689] [cursor=pointer]: 卢老师
+                    - generic [ref=e690] [cursor=pointer]: 佳
+                    - generic [ref=e691] [cursor=pointer]: 杰仔
+                    - generic [ref=e692] [cursor=pointer]: 锦辉
+                    - generic [ref=e693] [cursor=pointer]: 柱
+                    - generic [ref=e694] [cursor=pointer]: 茄
+                    - generic [ref=e695] [cursor=pointer]: 达
+                    - generic [ref=e696] [cursor=pointer]: 志
+                    - generic [ref=e697] [cursor=pointer]: 谦
+                    - generic [ref=e698] [cursor=pointer]: 润
+                    - generic [ref=e699] [cursor=pointer]: 楠
+                - generic [ref=e700]:
+                  - generic [ref=e701]: 排名
+                  - generic [ref=e702]: 玩家
+                  - generic [ref=e703]: 积分
+                - generic [ref=e705]:
+                  - generic [ref=e707]: "-"
+                  - combobox "玩家名" [ref=e709]
+                  - generic [ref=e710]:
+                    - spinbutton [ref=e711]
+                    - generic [ref=e712]:
+                      - button "+500" [ref=e713]
+                      - button "+100" [ref=e714]
+                      - button "-100" [ref=e715]
+                      - button "-500" [ref=e716]
+                  - button "✕" [ref=e717]
+                - generic [ref=e719]:
+                  - generic [ref=e720]: 0 人已录入
+                  - generic [ref=e722]: "合计: 0"
+              - generic [ref=e723]:
+                - button "+ 添加玩家" [ref=e724]
+                - button "保存并提交" [disabled]
+          - generic [ref=e725]:
+            - generic [ref=e727]:
+              - generic [ref=e728]: 🗑️
+              - text: 数据管理
+            - generic [ref=e729]:
+              - paragraph [ref=e730]: 当前共 40 条记录，7 个场次
+              - button "重置为初始数据" [ref=e731]
+        - generic [ref=e732]:
+          - generic [ref=e734]:
+            - generic [ref=e735]:
+              - generic [ref=e736]: 📋
+              - text: 历史场次
+            - generic [ref=e737]:
+              - generic [ref=e738]: 1 等待录入
+              - generic [ref=e739]: 7 已确认
+          - generic [ref=e741]:
+            - generic [ref=e745] [cursor=pointer]:
+              - generic [ref=e746]:
+                - generic [ref=e747]: 2026-04-27
+                - generic [ref=e748]: 等待录入
+              - generic [ref=e749]:
+                - generic [ref=e750]: 0 人
+                - generic [ref=e751]: "合计: 0"
+            - generic [ref=e754] [cursor=pointer]:
+              - generic [ref=e755]:
+                - generic [ref=e756]:
+                  - generic [ref=e757]: 2025-11-22
+                  - generic [ref=e758]: 已确认
+                - generic [ref=e759]:
+                  - generic [ref=e760]: 6 人
+                  - generic [ref=e761]: "合计: 0"
+              - generic [ref=e762]:
+                - generic [ref=e763]: 卢老师 +5000
+                - generic [ref=e764]: 佳 +1200
+                - generic [ref=e765]: 杰仔 -200
+                - generic [ref=e766]: 润 -1500
+                - generic [ref=e767]: +2人
+            - generic [ref=e770] [cursor=pointer]:
+              - generic [ref=e771]:
+                - generic [ref=e772]:
+                  - generic [ref=e773]: 2025-11-15
+                  - generic [ref=e774]: 已确认
+                - generic [ref=e775]:
+                  - generic [ref=e776]: 5 人
+                  - generic [ref=e777]: "合计: 0"
+              - generic [ref=e778]:
+                - generic [ref=e779]: 卢老师 +2100
+                - generic [ref=e780]: 佳 +1800
+                - generic [ref=e781]: 润 -800
+                - generic [ref=e782]: 谦 -1100
+                - generic [ref=e783]: +1人
+            - generic [ref=e786] [cursor=pointer]:
+              - generic [ref=e787]:
+                - generic [ref=e788]:
+                  - generic [ref=e789]: 2025-11-09
+                  - generic [ref=e790]: 已确认
+                - generic [ref=e791]:
+                  - generic [ref=e792]: 6 人
+                  - generic [ref=e793]: "合计: -8050"
+              - generic [ref=e794]:
+                - generic [ref=e795]: 佳 +2100
+                - generic [ref=e796]: 杰仔 +1450
+                - generic [ref=e797]: 柱 -2000
+                - generic [ref=e798]: 润 -2000
+                - generic [ref=e799]: +2人
+            - generic [ref=e802] [cursor=pointer]:
+              - generic [ref=e803]:
+                - generic [ref=e804]:
+                  - generic [ref=e805]: 2025-11-07
+                  - generic [ref=e806]: 已确认
+                - generic [ref=e807]:
+                  - generic [ref=e808]: 8 人
+                  - generic [ref=e809]: "合计: 0"
+              - generic [ref=e810]:
+                - generic [ref=e811]: 卢老师 +3800
+                - generic [ref=e812]: 佳 +1470
+                - generic [ref=e813]: 锦辉 +1360
+                - generic [ref=e814]: 志 +60
+                - generic [ref=e815]: +4人
+            - generic [ref=e818] [cursor=pointer]:
+              - generic [ref=e819]:
+                - generic [ref=e820]:
+                  - generic [ref=e821]: 2025-11-01
+                  - generic [ref=e822]: 已确认
+                - generic [ref=e823]:
+                  - generic [ref=e824]: 7 人
+                  - generic [ref=e825]: "合计: 0"
+              - generic [ref=e826]:
+                - generic [ref=e827]: 卢老师 +4300
+                - generic [ref=e828]: 杰仔 +2000
+                - generic [ref=e829]: 锦辉 +400
+                - generic [ref=e830]: 润 -100
+                - generic [ref=e831]: +3人
+            - generic [ref=e834] [cursor=pointer]:
+              - generic [ref=e835]:
+                - generic [ref=e836]:
+                  - generic [ref=e837]: 2025-10-26
+                  - generic [ref=e838]: 已确认
+                - generic [ref=e839]:
+                  - generic [ref=e840]: 5 人
+                  - generic [ref=e841]: "合计: 0"
+              - generic [ref=e842]:
+                - generic [ref=e843]: 茄 +2700
+                - generic [ref=e844]: 楠 +530
+                - generic [ref=e845]: 润 +230
+                - generic [ref=e846]: 谦 -1220
+                - generic [ref=e847]: +1人
+            - generic [ref=e850] [cursor=pointer]:
+              - generic [ref=e851]:
+                - generic [ref=e852]:
+                  - generic [ref=e853]: 2025-10-25
+                  - generic [ref=e854]: 已确认
+                - generic [ref=e855]:
+                  - generic [ref=e856]: 3 人
+                  - generic [ref=e857]: "合计: 0"
+              - generic [ref=e858]:
+                - generic [ref=e859]: 谦 +1540
+                - generic [ref=e860]: 茄 +250
+                - generic [ref=e861]: 润 -1790
+    - navigation [ref=e632]:
+      - button "🏠 首页" [ref=e633]:
+        - generic [ref=e635]: 🏠
+        - generic [ref=e636]: 首页
+      - button "✏️ 记录" [active] [ref=e637]:
+        - generic [ref=e638]: ✏️
+        - generic [ref=e639]: 记录
+      - button "🏆 排行" [ref=e640]:
+        - generic [ref=e641]: 🏆
+        - generic [ref=e642]: 排行
+      - button "🃏 手牌" [ref=e643]:
+        - generic [ref=e644]: 🃏
+        - generic [ref=e645]: 手牌
+      - button "👤 我的" [ref=e646]:
+        - generic [ref=e647]: 👤
+        - generic [ref=e648]: 我的
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e654] [cursor=pointer]:
+    - img [ref=e655]
+  - alert [ref=e25]
+  - generic [ref=e658]: "25"

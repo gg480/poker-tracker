@@ -1,10 +1,14 @@
 "use client";
 
-import type { ComputedStats, PlayerSettlement } from "@/lib/data";
+import type { ComputedStats } from "@/lib/types";
+import type { PlayerSettlement } from "@/lib/types";
 import { calcBalance } from "@/lib/data";
-import { CHART_COLORS } from "@/lib/stats";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CHART_COLORS } from "@/lib/constants";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MIN_GAMES_FOR_AWARD, RECENT_GAMES_LIMIT, RECENT_DATES_LIMIT, DAILY_BEST_LIMIT } from "@/lib/constants";
+import { ScrollIndicator } from "@/components/ui/scroll-indicator";
+import { Trophy, TrendingUp, Target, Gem, CreditCard, Calendar } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, Legend, CartesianGrid,
@@ -17,11 +21,11 @@ interface DashboardProps {
 }
 
 export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardProps) {
-  // Dragon Tiger Board: all players sorted by total
+  // 龙虎榜：按总收支排序
   const allSorted = [...stats.players].sort((a, b) => b.total - a.total);
   const medalColors = ["bg-amber-500", "bg-slate-400", "bg-amber-700"];
 
-  // Post-clear balance: balance = total_score - settle_score + season_adjust
+  // 清分后余额：balance = total_score - settle_score + season_adjust
   const playerBalances = [...stats.players].map(p => {
     const playerSettlements = settlements.filter(s => s.player === p.name);
     const settleScore = playerSettlements.reduce((sum, s) => sum + s.settleScore, 0);
@@ -30,21 +34,19 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
     return { ...p, settleScore, seasonAdjust, balance };
   });
 
-  // Recent games: ALL players, sorted by games desc, then show top N for columns
+  // 最近场次：按场次排序，取前N列
   const allByGames = [...stats.players].sort((a, b) => b.games - a.games);
-  // Mobile: show top 8 players in recent games table; desktop: top 12
-  const recentGamesCols = allByGames.slice(0, 10);
+  const recentGamesCols = allByGames.slice(0, RECENT_GAMES_LIMIT);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Dragon Tiger Board */}
-      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">🏆</span> 龙虎榜 · 总收支
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* 龙虎榜 */}
+      <Card className="lg:col-span-2 glass-card spotlight-border overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="size-4 text-amber-400" strokeWidth={2} />
+            <span className="text-sm font-semibold">龙虎榜 · 总收支</span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs">
               <thead>
@@ -56,8 +58,10 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
               </thead>
               <tbody>
                 {allSorted.map((p, i) => (
-                  <tr key={p.name} className="cursor-pointer hover:bg-primary/5"
-                    onClick={() => onPlayerClick(p.name)}>
+                  <tr key={p.name} className="cursor-pointer hover:bg-primary/5 transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-[-2px]"
+                    tabIndex={0} role="button"
+                    onClick={() => onPlayerClick(p.name)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlayerClick(p.name) } }}>
                     <td className="py-1.5 px-2 border-b border-border/50">
                       <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold ${
                         i < 3 ? medalColors[i] + ' text-primary-foreground' : 'text-muted-foreground'
@@ -79,20 +83,19 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
         </CardContent>
       </Card>
 
-      {/* Cumulative Trend */}
-      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">📈</span> 累计积分走势
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* 累计积分走势 */}
+      <Card className="lg:col-span-2 glass-card spotlight-border overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="size-4 text-primary" strokeWidth={2} />
+            <span className="text-sm font-semibold">累计积分走势</span>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={stats.trendData} margin={{ left: 10, right: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e2d4a" />
-              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+              <XAxis dataKey="date" tick={{ fill: '#7d8da3', fontSize: 10 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fill: '#7d8da3', fontSize: 11 }} />
+              <Tooltip contentStyle={{ background: '#131a26', border: '1px solid #1f2937', borderRadius: 8, fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {stats.players.map((p, i) => (
                 <Line key={p.name} type="monotone" dataKey={p.name}
@@ -104,22 +107,21 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
         </CardContent>
       </Card>
 
-      {/* Win Rate Ranking */}
-      <Card className="border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">🎯</span> 胜率排行
-            <Badge variant="secondary" className="text-[10px] ml-1">&ge;5场</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* 胜率排行 */}
+      <Card className="glass-card spotlight-border overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="size-4 text-primary" strokeWidth={2} />
+            <span className="text-sm font-semibold">胜率排行</span>
+            <Badge variant="secondary" className="text-[10px] ml-1">&ge;{MIN_GAMES_FOR_AWARD}场</Badge>
+          </div>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={[...stats.players].filter(p => p.games >= 5).sort((a, b) => Number(b.winRate) - Number(a.winRate))} margin={{ left: 10, right: 10, bottom: 20 }}>
-              <XAxis dataKey="name" tick={{ fill: '#e2e8f0', fontSize: 11 }} angle={-30} textAnchor="end" />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} domain={[0, 100]} />
-              <Tooltip formatter={(v: number) => `${v}%`} contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} />
+            <BarChart data={[...stats.players].filter(p => p.games >= MIN_GAMES_FOR_AWARD).sort((a, b) => Number(b.winRate) - Number(a.winRate))} margin={{ left: 10, right: 10, bottom: 20 }}>
+              <XAxis dataKey="name" tick={{ fill: '#e6edf3', fontSize: 11 }} angle={-30} textAnchor="end" />
+              <YAxis tick={{ fill: '#7d8da3', fontSize: 11 }} domain={[0, 100]} />
+              <Tooltip formatter={(v: number) => `${v}%`} contentStyle={{ background: '#131a26', border: '1px solid #1f2937', borderRadius: 8 }} />
               <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
-                {[...stats.players].filter(p => p.games >= 5).sort((a, b) => Number(b.winRate) - Number(a.winRate)).map((_, i) => (
+                {[...stats.players].filter(p => p.games >= MIN_GAMES_FOR_AWARD).sort((a, b) => Number(b.winRate) - Number(a.winRate)).map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Bar>
@@ -128,26 +130,27 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
         </CardContent>
       </Card>
 
-      {/* Daily Best */}
-      <Card className="border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">💎</span> 单日最高记录
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* 单日最高记录 */}
+      <Card className="glass-card spotlight-border overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Gem className="size-4 text-amber-400" strokeWidth={2} />
+            <span className="text-sm font-semibold">单日最高记录</span>
+          </div>
           <div className="flex flex-col gap-1.5">
             {Object.entries(stats.dailyBests)
               .sort((a, b) => b[1].score - a[1].score)
-              .slice(0, 8)
+              .slice(0, DAILY_BEST_LIMIT)
               .map(([name, { score, date }], i) => (
                 <div key={name} className="flex items-center gap-2.5 py-1.5">
                   <span className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shrink-0 ${i < 3 ? medalColors[i] : "bg-muted"}`}>
                     {i + 1}
                   </span>
                   <span
-                    className="flex-1 text-sm cursor-pointer hover:text-primary transition-colors"
+                    className="flex-1 text-sm cursor-pointer hover:text-primary transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2 rounded"
+                    role="button" tabIndex={0}
                     onClick={() => onPlayerClick(name)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlayerClick(name) } }}
                   >
                     {name}
                   </span>
@@ -161,15 +164,14 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
         </CardContent>
       </Card>
 
-      {/* Post-Clear Balance Leaderboard */}
-      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">💳</span> 清分后余额排行
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+      {/* 清分后余额排行 */}
+      <Card className="lg:col-span-2 glass-card spotlight-border overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CreditCard className="size-4 text-primary" strokeWidth={2} />
+            <span className="text-sm font-semibold">清分后余额排行</span>
+          </div>
+          <ScrollIndicator>
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr>
@@ -185,8 +187,10 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
                 {playerBalances
                   .sort((a, b) => b.balance - a.balance)
                   .map((b, i) => (
-                    <tr key={b.name} className="cursor-pointer hover:bg-primary/5"
-                      onClick={() => onPlayerClick(b.name)}>
+                    <tr key={b.name} className="cursor-pointer hover:bg-primary/5 transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-[-2px]"
+                      tabIndex={0} role="button"
+                      onClick={() => onPlayerClick(b.name)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlayerClick(b.name) } }}>
                       <td className="py-1.5 px-2 border-b border-border/50">
                         <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold ${
                           i < 3 ? medalColors[i] + ' text-primary-foreground' : 'text-muted-foreground'
@@ -225,20 +229,19 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
                   ))}
               </tbody>
             </table>
-          </div>
+          </ScrollIndicator>
         </CardContent>
       </Card>
 
-      {/* Recent Games - ALL players sorted by games desc */}
-      <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">📅</span> 最近场次
+      {/* 最近场次 */}
+      <Card className="lg:col-span-2 glass-card spotlight-border overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="size-4 text-primary" strokeWidth={2} />
+            <span className="text-sm font-semibold">最近场次</span>
             <Badge variant="secondary" className="text-[10px] ml-1">{stats.totalGames}场</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+          </div>
+          <ScrollIndicator>
             <table className="w-full border-collapse text-xs min-w-[400px]">
               <thead>
                 <tr>
@@ -259,7 +262,7 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
                 </tr>
               </thead>
               <tbody>
-                {stats.dates.slice(-8).reverse().map(d => (
+                {stats.dates.slice(-RECENT_DATES_LIMIT).reverse().map(d => (
                   <tr key={d}>
                     <td className="py-1.5 px-2.5 border-b border-border/50 font-mono whitespace-nowrap sticky left-0 bg-card z-10">{d.slice(5)}</td>
                     {recentGamesCols.map(p => {
@@ -279,7 +282,7 @@ export function Dashboard({ stats, settlements = [], onPlayerClick }: DashboardP
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollIndicator>
         </CardContent>
       </Card>
     </div>

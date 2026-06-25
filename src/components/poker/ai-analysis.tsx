@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { ComputedStats, AICacheItem } from "@/lib/data";
-import { loadAICache, saveAICacheItem } from "@/lib/data";
+import type { ComputedStats } from "@/lib/types";
+import type { AICacheItem } from "@/lib/types";
+import { loadAICache, saveAICacheItem, clearAICache } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useAIConfigStore } from "@/stores/ai-config-store";
+import { AIConfigDialog } from "@/components/poker/ai/ai-config-dialog";
 
 interface AIAnalysisProps {
   stats: ComputedStats;
@@ -50,6 +53,7 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [cache, setCache] = useState<AICacheItem[]>([]);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Load cached AI results on mount
@@ -61,11 +65,17 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
     loadCache();
   }, []);
 
-  const persistCache = useCallback(async (items: AICacheItem[]) => {
-    setCache(items);
-    for (const item of items) {
-      await saveAICacheItem(item);
-    }
+  // Abort in-flight request on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const addCacheItem = useCallback(async (item: AICacheItem) => {
+    // Optimisation: only save the single new/changed item, not the entire cache
+    setCache(prev => [item, ...prev.filter(c => c.label !== item.label || c.prompt !== item.prompt)]);
+    await saveAICacheItem(item);
   }, []);
 
   const askAI = useCallback(async (prompt: string, label?: string) => {
@@ -77,11 +87,17 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // 从 store 读取 AI 配置，传入 API
+    const aiConfig = useAIConfigStore.getState().config;
+    const configPayload = aiConfig.apiKey
+      ? { apiKey: aiConfig.apiKey, baseUrl: aiConfig.baseUrl, model: aiConfig.model, temperature: aiConfig.temperature }
+      : { model: aiConfig.model, temperature: aiConfig.temperature };
+
     try {
       const response = await fetch('/api/ai-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, context: buildContext(stats) }),
+        body: JSON.stringify({ prompt, context: buildContext(stats), config: configPayload }),
         signal: controller.signal,
       });
 
@@ -123,7 +139,7 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
         }
       }
 
-      // Save to cache
+      // Save to cache — only persist the new/changed item
       const cacheLabel = label || '自定义提问';
       const newCache: AICacheItem = {
         label: cacheLabel,
@@ -131,14 +147,14 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
         result: fullText,
         time: new Date().toLocaleString(),
       };
-      persistCache([newCache, ...cache.filter(c => c.label !== cacheLabel || c.prompt !== prompt)]);
+      addCacheItem(newCache);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       setResult(`请求失败: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
-  }, [stats, cache, persistCache]);
+  }, [stats, addCacheItem]);
 
   const handlePresetClick = (preset: typeof PRESETS[number]) => {
     setQuery(preset.prompt);
@@ -151,7 +167,8 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
   };
 
   const clearCache = () => {
-    persistCache([]);
+    setCache([]);
+    clearAICache();
   };
 
   // Find cached result for each preset
@@ -161,9 +178,19 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card className="lg:col-span-2 border-border/40 bg-card/60 backdrop-blur">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">🤖</span> AI 分析助手
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="text-lg">🤖</span> AI 分析助手
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1 text-muted-foreground hover:text-foreground"
+              onClick={() => setConfigDialogOpen(true)}
+            >
+              <span className="text-sm">⚙️</span> 配置
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground text-sm">AI会基于你的全部积分数据进行分析，预设场景结果会持久化保存</p>
@@ -212,7 +239,7 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
           </div>
 
           {loading && !result && (
-            <div className="space-y-2">
+            <div className="space-y-2" aria-label="AI 分析加载中" role="status">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
@@ -220,7 +247,7 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
           )}
 
           {result && (
-            <div className="p-4 bg-background/80 rounded-xl border border-border/50">
+            <div className="p-4 bg-background/80 rounded-xl border border-border/50" role="alert" aria-live="polite">
               <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed font-sans m-0">
                 {result}
               </pre>
@@ -259,6 +286,8 @@ export function AIAnalysis({ stats }: AIAnalysisProps) {
           </CardContent>
         </Card>
       )}
+
+      <AIConfigDialog open={configDialogOpen} onOpenChange={setConfigDialogOpen} />
     </div>
   );
 }

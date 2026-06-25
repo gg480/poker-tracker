@@ -1,36 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAllAICache, insertAICache, updateAICache, trimAICache } from "@/storage/database/crud";
+import { NextRequest } from "next/server";
+import { getAICachePaginated, insertAICache, updateAICache, deleteAICache, trimAICache } from "@/storage/database/crud";
+import {
+  createAICacheSchema,
+  updateAICacheSchema,
+  deleteAICacheSchema,
+  parsePaginationParams,
+} from "../_validators";
+import { respond, respondWithParse } from "@/services/crud-service";
 
-export async function GET() {
-  try {
-    const data = getAllAICache();
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+export async function GET(request: NextRequest) {
+  return respond(() => {
+    const { searchParams } = new URL(request.url);
+    const { page, limit } = parsePaginationParams(searchParams);
+    return getAICachePaginated(page, limit);
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const cache = await request.json();
+  return respondWithParse(request, createAICacheSchema, (cache) => {
     const data = insertAICache(cache);
     trimAICache(3);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+    return data;
+  });
 }
 
 export async function PUT(request: NextRequest) {
-  try {
-    const { id, result } = await request.json();
+  return respondWithParse(request, updateAICacheSchema, ({ id, result }) => {
     const data = updateAICache(id, result);
     trimAICache(3);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+    return data;
+  });
+}
+
+export async function DELETE(request: NextRequest) {
+  return respondWithParse(request, deleteAICacheSchema, ({ id }) => {
+    const data = deleteAICache(id);
+    return data;
+  });
 }

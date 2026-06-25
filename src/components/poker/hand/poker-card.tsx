@@ -30,12 +30,17 @@ export function PokerCard({ suit, rank, className = "", size = "md" }: PokerCard
   const color = SUIT_COLORS[suit]
   const symbol = SUIT_SYMBOLS[suit]
 
+  const rankDisplay = rank === "T" ? "10" : rank
+  const suitName = { spade: "黑桃", heart: "红心", diamond: "方块", club: "梅花" }[suit]
+
   return (
     <svg
       viewBox={`0 0 ${s.w} ${s.h}`}
       className={`inline-block ${className}`}
       width={s.w}
       height={s.h}
+      role="img"
+      aria-label={`${rankDisplay}${suitName}`}
     >
       <rect
         x="1"
@@ -78,25 +83,30 @@ export function PokerCard({ suit, rank, className = "", size = "md" }: PokerCard
   )
 }
 
+// 修复 OP-40: 统一的单张牌解析函数（供 coach 组件和 poker-card 内部使用）
+export function parseCardCode(code: string): { suit: "spade" | "heart" | "diamond" | "club"; rank: string } | null {
+  if (code.length < 2) return null
+  const rank = code.slice(0, -1)
+  const suitChar = code.slice(-1).toLowerCase()
+
+  let suit: "spade" | "heart" | "diamond" | "club"
+  switch (suitChar) {
+    case "s": case "♠": suit = "spade"; break
+    case "h": case "♥": suit = "heart"; break
+    case "d": case "♦": suit = "diamond"; break
+    case "c": case "♣": suit = "club"; break
+    default: return null
+  }
+  return { suit, rank }
+}
+
 export function parseBoardCards(boardStr: string): { suit: "spade" | "heart" | "diamond" | "club"; rank: string }[] {
   const cards: { suit: "spade" | "heart" | "diamond" | "club"; rank: string }[] = []
   const parts = boardStr.trim().split(/\s+/)
 
   for (const part of parts) {
-    if (part.length < 2) continue
-    const rank = part.slice(0, -1)
-    const suitChar = part.slice(-1).toLowerCase()
-
-    let suit: "spade" | "heart" | "diamond" | "club"
-    switch (suitChar) {
-      case "s": case "♠": suit = "spade"; break
-      case "h": case "♥": suit = "heart"; break
-      case "d": case "♦": suit = "diamond"; break
-      case "c": case "♣": suit = "club"; break
-      default: continue
-    }
-
-    cards.push({ suit, rank })
+    const card = parseCardCode(part)
+    if (card) cards.push(card)
   }
 
   return cards

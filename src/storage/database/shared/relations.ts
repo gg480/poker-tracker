@@ -8,6 +8,7 @@ import {
   handRecords,
   awardRecords,
 } from "./schema"
+import { coachSessions, coachDecisions, coachFeedback } from "./coach-schema"
 
 export const seasonsRelations = relations(seasons, ({ many }) => ({
   gameSessions: many(gameSessions),
@@ -67,5 +68,29 @@ export const awardRecordsRelations = relations(awardRecords, ({ one }) => ({
   season: one(seasons, {
     fields: [awardRecords.seasonId],
     references: [seasons.id],
+  }),
+}))
+
+export const coachSessionsRelations = relations(coachSessions, ({ many }) => ({
+  decisions: many(coachDecisions),
+  feedback: many(coachFeedback),
+}))
+
+export const coachDecisionsRelations = relations(coachDecisions, ({ one, many }) => ({
+  session: one(coachSessions, {
+    fields: [coachDecisions.sessionId],
+    references: [coachSessions.id],
+  }),
+  feedback: many(coachFeedback),
+}))
+
+export const coachFeedbackRelations = relations(coachFeedback, ({ one }) => ({
+  session: one(coachSessions, {
+    fields: [coachFeedback.sessionId],
+    references: [coachSessions.id],
+  }),
+  decision: one(coachDecisions, {
+    fields: [coachFeedback.decisionId],
+    references: [coachDecisions.id],
   }),
 }))

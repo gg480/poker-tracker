@@ -1,7 +1,10 @@
 import { defineConfig } from "drizzle-kit"
 
 export default defineConfig({
-  schema: "./src/storage/database/shared/schema.ts",
+  schema: [
+    "./src/storage/database/shared/schema.ts",
+    "./src/storage/database/shared/coach-schema.ts",
+  ],
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {

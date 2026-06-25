@@ -1,5 +1,9 @@
 "use client"
 
+// NOTE: This is a standard shadcn/ui chart component (recharts wrapper).
+// Currently unused — kept for future use when chart features are needed.
+// Delete this file if recharts is never adopted.
+
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 

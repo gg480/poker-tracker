@@ -2,7 +2,9 @@
 
 import { useState } from "react"
 import { CardSelector, CardDisplay } from "./card-selector"
-import { useQuickEntryStore, QUICK_TAGS, QUICK_TAG_ICONS, type QuickTag } from "@/stores/quick-entry-store"
+import { cardName } from "./poker-engine"
+import { QUICK_TAGS, QUICK_TAG_ICONS } from "@/lib/constants"
+import { useQuickEntryStore } from "@/stores/quick-entry-store"
 
 export interface QuickEntrySaveData {
   heroCards: string[]
@@ -26,27 +28,24 @@ export function QuickEntryWizard({ onSave, onCancel }: QuickEntryWizardProps) {
 
   const resultNumber = result === "win" ? 1 : result === "lose" ? -1 : 0
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (heroCards.length !== 2 || !result || !tag) return
     setSaving(true)
-    onSave({
-      heroCards: heroCards.map(cardName),
-      boardCards: [],
-      result: resultNumber,
-      winner: null,
-      notes: note || null,
-      tags: tag,
-      sessionId: null,
-    })
-    reset()
-  }
-
-  function cardName(card: number): string {
-    const r = (card >> 4) & 0xF
-    const s = card & 0xF
-    const R = " 23456789TJQKA"
-    const S = "cdhs"
-    return `${R[r]}${S[s]}`
+    try {
+      await onSave({
+        heroCards: heroCards.map(cardName),
+        boardCards: [],
+        result: resultNumber,
+        winner: null,
+        notes: note || null,
+        tags: tag,
+        sessionId: null,
+      })
+      reset()
+    } catch {
+      // Saving failed — reset saving state so the user can retry
+      setSaving(false)
+    }
   }
 
   return (
@@ -85,8 +84,12 @@ export function QuickEntryWizard({ onSave, onCancel }: QuickEntryWizardProps) {
       {step === 1 && (
         <div className="space-y-3">
           <div className="text-xs text-muted-foreground">选择你的起手牌（2张）</div>
-          <CardSelector selectedCards={heroCards} onCardSelect={(c) => setHeroCards([...heroCards, c])} maxCards={2} />
-          <div className="flex justify-end pt-2">
+          <CardSelector selectedCards={heroCards} onCardSelect={(c) => setHeroCards(heroCards.includes(c) ? heroCards.filter((h) => h !== c) : [...heroCards, c])} maxCards={2} />
+          <div className="flex justify-between items-center pt-2">
+            {heroCards.length < 2 && (
+              <span className="text-[11px] text-amber-400">⚠ 请选择 {2 - heroCards.length} 张手牌</span>
+            )}
+            <div className="flex-1" />
             <button onClick={nextStep} disabled={heroCards.length < 2}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
               下一步 →
@@ -113,8 +116,11 @@ export function QuickEntryWizard({ onSave, onCancel }: QuickEntryWizardProps) {
               </button>
             ))}
           </div>
-          <div className="flex justify-between pt-2">
+          <div className="flex justify-between items-center pt-2">
             <button onClick={prevStep} className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/20 transition-all">← 上一步</button>
+            {!result && (
+              <span className="text-[11px] text-amber-400">⚠ 请选择结果</span>
+            )}
             <button onClick={nextStep} disabled={!result}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
               下一步 →
@@ -143,8 +149,11 @@ export function QuickEntryWizard({ onSave, onCancel }: QuickEntryWizardProps) {
             className="w-full px-3 py-2 rounded-lg bg-muted/20 border border-border/30 text-sm focus:outline-none focus:border-primary/50 transition-colors"
             placeholder="简短描述这手牌..." />
 
-          <div className="flex justify-between pt-2">
+          <div className="flex justify-between items-center pt-2">
             <button onClick={prevStep} className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/20 transition-all">← 上一步</button>
+            {!tag && (
+              <span className="text-[11px] text-amber-400">⚠ 请选择标签</span>
+            )}
             <button onClick={handleSave} disabled={!tag || saving}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
               {saving ? "保存中..." : "⚡ 保存"}

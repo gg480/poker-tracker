@@ -4,11 +4,10 @@ import { useState, useCallback, useMemo } from "react"
 import {
   PokerEngine, HandEvaluator,
   STREETS, STREET_LABEL,
-  makeCard, parseCardCode,
-  type Card, type Position, type Action, type Street, type GameAction,
+  type Card, type Position, type Action, type GameAction,
 } from "./poker-engine"
 import {
-  CardSelector, CardDisplay, ActionSelector, ActionHistoryRow, PositionCard, formatActionLine,
+  CardSelector, CardDisplay, ActionSelector, ActionHistoryRow, PositionCard,
   POSITIONS_FOR_N, getBetLevelLabel,
 } from "./card-selector"
 import {
@@ -20,8 +19,8 @@ import {
 interface HandWizardProps {
   onSave: (data: HandWizardData) => void
   onCancel: () => void
-  players?: string[]
   activeSeasonId?: string
+  initialData?: Partial<HandWizardData>
 }
 
 export interface HandWizardData {
@@ -41,24 +40,24 @@ export interface HandWizardData {
   sessionId?: string
 }
 
-const STEP_ORDER: Record<Street, number> = { preflop: 0, flop: 1, turn: 2, river: 3 }
-
-export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWizardProps) {
+export function HandWizard({ onSave, onCancel, initialData }: HandWizardProps) {
   const [engine, setEngine] = useState<PokerEngine | null>(null)
-  const [heroCards, setHeroCards] = useState<Card[]>([])
-  const [heroPosition, setHeroPosition] = useState<Position>("CO")
-  const [numPlayers, setNumPlayers] = useState(6)
-  const [blinds, setBlinds] = useState({ sb: 50, bb: 100 })
-  const [flopCards, setFlopCards] = useState<Card[]>([])
-  const [turnCard, setTurnCard] = useState<Card | null>(null)
-  const [riverCard, setRiverCard] = useState<Card | null>(null)
-  const [result, setResult] = useState("")
-  const [notes, setNotes] = useState("")
-  const [tags, setTags] = useState("")
+  const [heroCards, setHeroCards] = useState<Card[]>(initialData?.heroCards || [])
+  const [heroPosition, setHeroPosition] = useState<Position>(initialData?.heroPosition || "CO")
+  const [numPlayers, setNumPlayers] = useState(initialData?.numPlayers || 6)
+  const [blinds, setBlinds] = useState(initialData?.blinds || { sb: 50, bb: 100 })
+  const [flopCards, setFlopCards] = useState<Card[]>(initialData?.flopCards || [])
+  const [turnCard, setTurnCard] = useState<Card | null>(initialData?.turnCard || null)
+  const [riverCard, setRiverCard] = useState<Card | null>(initialData?.riverCard || null)
+  const [result, setResult] = useState(initialData?.result !== undefined ? String(initialData.result) : "")
+  const [notes, setNotes] = useState(initialData?.notes || "")
+  const [tags, setTags] = useState(initialData?.tags || "")
   const [addingFor, setAddingFor] = useState<Position | null>(null)
   const [analysis, setAnalysis] = useState<{ equity: number; outs: number; handName: string } | null>(null)
   const [winners, setWinners] = useState<Position[]>([])
   const [showSavePanel, setShowSavePanel] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [playerStyle, setPlayerStyle] = useState<PlayerStyle>("standard")
   const [facingAction, setFacingAction] = useState<"open" | "raise" | "3bet" | undefined>(undefined)
 
@@ -86,6 +85,8 @@ export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWi
     const eng = new PokerEngine(numPlayers, heroPosition, blinds)
     setEngine(eng)
     setAddingFor(null)
+    setWinners([])
+    setShowSavePanel(false)
 
     const heroCs = [...heroCards]
     const board = [...flopCards]
@@ -117,6 +118,8 @@ export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWi
     engine.advanceStreet()
     setEngine(engine.clone())
     setAddingFor(null)
+    setWinners([])
+    setShowSavePanel(false)
   }, [engine])
 
   const handleNumPlayersChange = useCallback((n: number) => {
@@ -162,9 +165,6 @@ export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWi
     return heroResult ?? null
   }, [engine, winners, heroPosition])
 
-  const currentStep: Street = engine?.street || "preflop"
-  const stepIndex = STEP_ORDER[currentStep]
-
   const isComplete = engine ? engine.isRoundComplete() : false
 
   const canFinish = useMemo(() => {
@@ -175,18 +175,27 @@ export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWi
     return false
   }, [engine, isComplete, showSavePanel])
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (saving) return
+    setSaving(true)
+    setSaveError(null)
     const heroResult = autoResult ?? (result ? Number(result) : 0)
-    onSave({
-      date: new Date().toISOString().slice(0, 10),
-      heroCards, heroPosition, numPlayers, blinds,
-      history: engine ? engine.history.map((h) => h.actions) : [[], [], [], []],
-      flopCards, turnCard, riverCard,
-      result: heroResult,
-      winner: winners,
-      notes, tags,
-    })
-  }, [heroCards, heroPosition, numPlayers, blinds, engine, flopCards, turnCard, riverCard, result, notes, tags, autoResult, winners])
+    try {
+      await onSave({
+        date: new Date().toISOString().slice(0, 10),
+        heroCards, heroPosition, numPlayers, blinds,
+        history: engine ? engine.history.map((h) => h.actions) : [[], [], [], []],
+        flopCards, turnCard, riverCard,
+        result: heroResult,
+        winner: winners,
+        notes, tags,
+      })
+      setSaving(false)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : '保存失败，请重试')
+      setSaving(false)
+    }
+  }, [heroCards, heroPosition, numPlayers, blinds, engine, flopCards, turnCard, riverCard, result, notes, tags, autoResult, winners, onSave, saving])
 
   const canStart = heroCards.length === 2
 
@@ -341,30 +350,30 @@ export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWi
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1 overflow-x-auto pb-1" role="list" aria-label="下注轮次进度">
         {(engine.street === "preflop" || engine.history[0].actions.length > 0) && (
-          <button onClick={() => {}}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "preflop" ? "bg-primary/20 text-primary border-primary/40" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"}`}>
+          <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "preflop" ? "bg-primary/20 text-primary border-primary/40" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"}`}
+            aria-current={engine.street === "preflop" ? "step" : undefined}>
             翻前 {engine.street !== "preflop" && "✓"}
-          </button>
+          </span>
         )}
         {engine.history[0].actions.length > 0 && (
-          <button onClick={() => {}}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "flop" ? "bg-primary/20 text-primary border-primary/40" : engine.street === "turn" || engine.street === "river" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-muted/20 text-muted-foreground border-border/30"}`}>
+          <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "flop" ? "bg-primary/20 text-primary border-primary/40" : engine.street === "turn" || engine.street === "river" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-muted/20 text-muted-foreground border-border/30"}`}
+            aria-current={engine.street === "flop" ? "step" : undefined}>
             翻牌 {(engine.street === "turn" || engine.street === "river") && "✓"}
-          </button>
+          </span>
         )}
         {engine.history[1].actions.length > 0 && (
-          <button onClick={() => {}}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "turn" ? "bg-primary/20 text-primary border-primary/40" : engine.street === "river" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-muted/20 text-muted-foreground border-border/30"}`}>
+          <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "turn" ? "bg-primary/20 text-primary border-primary/40" : engine.street === "river" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-muted/20 text-muted-foreground border-border/30"}`}
+            aria-current={engine.street === "turn" ? "step" : undefined}>
             转牌 {engine.street === "river" && "✓"}
-          </button>
+          </span>
         )}
         {engine.history[2].actions.length > 0 && (
-          <button onClick={() => {}}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "river" ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/20 text-muted-foreground border-border/30"}`}>
+          <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border ${engine.street === "river" ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/20 text-muted-foreground border-border/30"}`}
+            aria-current={engine.street === "river" ? "step" : undefined}>
             河牌
-          </button>
+          </span>
         )}
       </div>
 
@@ -419,8 +428,9 @@ export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWi
             <ActionHistoryRow key={`${act.position}-${act.action}-${i}`}
               action={act} heroPosition={heroPosition} isBlind={isBlind}
               onRemove={isBlind ? undefined : () => {
-                engine.history[engine.streetIndex].actions.splice(i, 1)
-                setEngine(engine.clone())
+                const cloned = engine.clone()
+                cloned.history[cloned.streetIndex].actions.splice(i, 1)
+                setEngine(cloned)
               }}
             />
           )
@@ -627,12 +637,17 @@ export function HandWizard({ onSave, onCancel, players, activeSeasonId }: HandWi
         </div>
       )}
 
+      {saveError && (
+        <div className="text-xs text-red-400 text-center py-1.5 bg-red-500/10 rounded-md border border-red-500/20">
+          {saveError}
+        </div>
+      )}
       <div className="flex items-center justify-between pt-2 border-t border-border/50">
-        <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-all">取消</button>
+        <button onClick={onCancel} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50">取消</button>
         {canFinish && winners.length > 0 && (
-          <button onClick={handleSave}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all">
-            💾 保存手牌
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+            {saving ? "保存中..." : "💾 保存手牌"}
           </button>
         )}
       </div>

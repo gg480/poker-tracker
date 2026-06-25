@@ -52,7 +52,6 @@ export function checkReminder(
 
 export function getAlerts(
   playerBalances: PlayerBalance[],
-  settlements: PlayerSettlement[],
   clearRecordDates?: Record<string, string>
 ): ClearRadarAlert[] {
   const alerts: ClearRadarAlert[] = []
@@ -100,5 +99,5 @@ export function getClearRadarAlerts(
     return calcPlayerBalance(p.name, seasonId, p.total, settlement)
   })
 
-  return getAlerts(balances, settlements, clearRecordDates)
+  return getAlerts(balances, clearRecordDates)
 }

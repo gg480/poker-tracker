@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import type { PlayerSettlement, PlayerStats } from "@/lib/types"
-import { CLEAR_THRESHOLD } from "@/lib/constants"
 import { calcPlayerBalance } from "@/services/clear-radar-service"
+import { CLEAR_THRESHOLD } from "@/lib/constants"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,12 @@ interface EndSeasonDialogProps {
   seasonId: string
   players: PlayerStats[]
   settlements: PlayerSettlement[]
+  sessionCount: number
+  pendingSessionCount: number
+  collectedSessionCount: number
+  incompleteHandsCount: number
+  seasonRecordCount: number
+  seasonPlayerCount: number
   onConfirm: () => void
 }
 
@@ -32,9 +38,25 @@ export function EndSeasonDialog({
   seasonId,
   players,
   settlements,
+  sessionCount,
+  pendingSessionCount,
+  collectedSessionCount,
+  incompleteHandsCount,
+  seasonRecordCount,
+  seasonPlayerCount,
   onConfirm,
 }: EndSeasonDialogProps) {
-  const [step, setStep] = useState<"summary" | "confirm">("summary")
+  const [step, setStep] = useState<"checklist" | "summary" | "confirm">("checklist")
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  // Focus the dialog title when step changes for screen reader announcement
+  useEffect(() => {
+    if (open) {
+      // Small delay to allow dialog render and transition
+      const id = setTimeout(() => titleRef.current?.focus(), 100)
+      return () => clearTimeout(id)
+    }
+  }, [open, step])
 
   const clearSummary = useMemo(() => {
     return players
@@ -59,32 +81,100 @@ export function EndSeasonDialog({
     0
   )
 
+  const overThresholdCount = useMemo(() => {
+    return clearSummary.filter((b) => Math.abs(b.balance) >= CLEAR_THRESHOLD).length
+  }, [clearSummary])
+
   const handleConfirm = () => {
-    if (step === "summary") {
+    if (step === "checklist") {
+      setStep("summary")
+    } else if (step === "summary") {
       setStep("confirm")
     } else {
       onConfirm()
-      setStep("summary")
+      setStep("checklist")
     }
   }
 
   const handleCancel = () => {
-    setStep("summary")
+    setStep("checklist")
     onOpenChange(false)
   }
+
+  const hasWarnings = pendingSessionCount > 0 || collectedSessionCount > 0 || incompleteHandsCount > 0
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {step === "summary" ? "结束赛季 - 清分摘要" : "最终确认"}
+          <AlertDialogTitle ref={titleRef} tabIndex={-1} className="focus:outline-none">
+            {step === "checklist" && "结束赛季 - 盘点清单"}
+            {step === "summary" && "结束赛季 - 清分摘要"}
+            {step === "confirm" && "最终确认"}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
-            {step === "summary" ? (
+            {step === "checklist" ? (
+              <div className="space-y-4">
+                <p>
+                  即将结束 <span className="font-medium text-foreground">{seasonName}</span>，请确认以下盘点项：
+                </p>
+
+                <div className="bg-muted/30 rounded-lg p-3 text-sm space-y-3">
+                  <div className="font-medium text-xs text-muted-foreground mb-2">
+                    📊 赛季数据总览
+                  </div>
+                  <div className="grid grid-cols-2 gap-y-2 text-xs">
+                    <span className="text-muted-foreground">总场次</span>
+                    <span className="text-right font-mono">{sessionCount}</span>
+                    <span className="text-muted-foreground">总记录数</span>
+                    <span className="text-right font-mono">{seasonRecordCount}</span>
+                    <span className="text-muted-foreground">参与玩家</span>
+                    <span className="text-right font-mono">{seasonPlayerCount} 人</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <CheckItem
+                    label="场次状态"
+                    passed={pendingSessionCount === 0 && collectedSessionCount === 0}
+                    detail={
+                      pendingSessionCount > 0
+                        ? `${pendingSessionCount} 个场次等待录入`
+                        : collectedSessionCount > 0
+                          ? `${collectedSessionCount} 个场次已收齐待确认`
+                          : "所有场次已确认"
+                    }
+                  />
+                  <CheckItem
+                    label="手牌记录"
+                    passed={incompleteHandsCount === 0}
+                    detail={
+                      incompleteHandsCount > 0
+                        ? `${incompleteHandsCount} 条手牌记录未完成`
+                        : "无未完成手牌"
+                    }
+                  />
+                  <CheckItem
+                    label="清分状态"
+                    passed={overThresholdCount === 0}
+                    detail={
+                      overThresholdCount > 0
+                        ? `${overThresholdCount} 位玩家余额超清分线 ${CLEAR_THRESHOLD}`
+                        : "无超警戒线余额"
+                    }
+                  />
+                </div>
+
+                {hasWarnings && (
+                  <p className="text-xs text-amber-400">
+                    ⚠️ 存在未完成项，建议处理后再结束赛季
+                  </p>
+                )}
+              </div>
+            ) : step === "summary" ? (
               <div className="space-y-3">
                 <p>
-                  即将结束 <span className="font-medium text-foreground">{seasonName}</span>，以下为全员清分摘要：
+                  以下为 <span className="font-medium text-foreground">{seasonName}</span> 全员清分摘要：
                 </p>
                 {clearSummary.length > 0 ? (
                   <div className="bg-muted/50 rounded-md p-2 text-sm space-y-1 max-h-[300px] overflow-y-auto">
@@ -125,25 +215,56 @@ export function EndSeasonDialog({
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-red-400 font-medium">
                   ⚠️ 此操作不可撤销！
                 </p>
-                <p>
-                  结束赛季后，所有玩家余额将归零（通过 season_adjust 调整），赛季数据将变为只读。
-                </p>
-                <p>确认要结束 {seasonName} 吗？</p>
+                <div className="bg-muted/30 rounded-lg p-3 text-sm space-y-1">
+                  <p>结束赛季后：</p>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                    <li>所有玩家余额将归零（通过 season_adjust 调整）</li>
+                    <li>赛季数据将变为只读</li>
+                    <li>无法再向本赛季录入积分</li>
+                  </ul>
+                </div>
+                <p>确认要结束 <span className="font-medium text-foreground">{seasonName}</span> 吗？</p>
               </div>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleCancel}>取消</AlertDialogCancel>
+          <AlertDialogCancel onClick={handleCancel}>
+            {step === "checklist" ? "取消" : "返回"}
+          </AlertDialogCancel>
           <AlertDialogAction onClick={handleConfirm}>
-            {step === "summary" ? "下一步" : "确认结束赛季"}
+            {step === "checklist" ? "下一步，查看清分" : step === "summary" ? "下一步，最终确认" : "确认结束赛季"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+function CheckItem({
+  label,
+  passed,
+  detail,
+}: {
+  label: string
+  passed: boolean
+  detail: string
+}) {
+  return (
+    <div className="flex items-start gap-2 p-2 rounded-md bg-muted/20">
+      <span className="text-base leading-5 mt-0.5" aria-hidden="true">
+        {passed ? "✅" : "⚠️"}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium">{label}</div>
+        <div className={`text-xs ${passed ? "text-emerald-400" : "text-amber-400"}`}>
+          {detail}
+        </div>
+      </div>
+    </div>
   )
 }

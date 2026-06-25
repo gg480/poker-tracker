@@ -1,0 +1,142 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]: ♠♥♦♣
+          - heading "德扑积分榜" [level=1] [ref=e7]
+        - generic [ref=e8]:
+          - generic [ref=e9]: 0 场
+          - generic [ref=e10]: 0 人
+    - button "全部" [ref=e13]
+    - main [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e19]:
+              - generic [ref=e20]: 🏟️
+              - text: 赛季概览
+            - generic [ref=e22]:
+              - generic [ref=e23]:
+                - generic [ref=e24]: "0"
+                - generic [ref=e25]: 总场次
+              - generic [ref=e26]:
+                - generic [ref=e27]: "0"
+                - generic [ref=e28]: 参与人数
+              - generic [ref=e29]:
+                - generic [ref=e30]: "0"
+                - generic [ref=e31]: 已清分
+              - generic [ref=e32]:
+                - generic [ref=e33]: 全部
+                - generic [ref=e34]: 当前赛季
+          - generic [ref=e35]:
+            - generic [ref=e37]:
+              - generic [ref=e38]: 📅
+              - text: 今日速览
+            - paragraph [ref=e40]: 今日暂无对局记录
+        - generic [ref=e41]:
+          - generic [ref=e43]:
+            - generic [ref=e44]: 📡
+            - text: 清分雷达
+          - paragraph [ref=e46]: 暂无清分提醒 ✨
+        - generic [ref=e47]:
+          - generic [ref=e49]:
+            - generic [ref=e50]: ⚡
+            - text: 快捷入口
+          - generic [ref=e52]:
+            - button "✏️ 录入积分" [ref=e53]:
+              - generic [ref=e54]: ✏️
+              - generic [ref=e55]: 录入积分
+            - button "🏆 排行榜" [ref=e56]:
+              - generic [ref=e57]: 🏆
+              - generic [ref=e58]: 排行榜
+            - button "🃏 记手牌" [ref=e59]:
+              - generic [ref=e60]: 🃏
+              - generic [ref=e61]: 记手牌
+            - button "⚙️ 管理" [ref=e62]:
+              - generic [ref=e63]: ⚙️
+              - generic [ref=e64]: 管理
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - generic [ref=e68]:
+              - generic [ref=e69]: 🏆
+              - text: 龙虎榜 · 总收支
+            - table [ref=e72]:
+              - rowgroup [ref=e73]:
+                - row "# 玩家 总收支" [ref=e74]:
+                  - columnheader "#" [ref=e75]
+                  - columnheader "玩家" [ref=e76]
+                  - columnheader "总收支" [ref=e77]
+              - rowgroup
+          - generic [ref=e80]:
+            - generic [ref=e81]: 📈
+            - text: 累计积分走势
+          - generic [ref=e86]:
+            - generic [ref=e87]: 🎯
+            - text: 胜率排行
+            - generic [ref=e88]: ≥5场
+          - generic [ref=e93]:
+            - generic [ref=e94]: 💎
+            - text: 单日最高记录
+          - generic [ref=e95]:
+            - generic [ref=e97]:
+              - generic [ref=e98]: 💳
+              - text: 清分后余额排行
+            - table [ref=e102]:
+              - rowgroup [ref=e103]:
+                - row "# 玩家 累计积分 请吃饭 赛季调整 余额" [ref=e104]:
+                  - columnheader "#" [ref=e105]
+                  - columnheader "玩家" [ref=e106]
+                  - columnheader "累计积分" [ref=e107]
+                  - columnheader "请吃饭" [ref=e108]
+                  - columnheader "赛季调整" [ref=e109]
+                  - columnheader "余额" [ref=e110]
+              - rowgroup
+          - generic [ref=e111]:
+            - generic [ref=e113]:
+              - generic [ref=e114]: 📅
+              - text: 最近场次
+              - generic [ref=e115]: 0场
+            - table [ref=e119]:
+              - rowgroup [ref=e120]:
+                - row "日期" [ref=e121]:
+                  - generic [ref=e122]: 日期
+              - rowgroup
+        - generic [ref=e124]:
+          - generic [ref=e126]:
+            - generic [ref=e127]:
+              - generic [ref=e128]: 🤖
+              - text: AI 分析助手
+            - button "⚙️ 配置" [ref=e129]:
+              - generic [ref=e130]: ⚙️
+              - text: 配置
+          - generic [ref=e131]:
+            - paragraph [ref=e132]: AI会基于你的全部积分数据进行分析，预设场景结果会持久化保存
+            - generic [ref=e133]:
+              - button "整体战报" [ref=e134]
+              - button "玩家风格分析" [ref=e135]
+              - button "最近趋势" [ref=e136]
+              - button "对局预测" [ref=e137]
+              - button "趣味数据" [ref=e138]
+            - generic [ref=e139]:
+              - textbox "输入自定义问题（临时提问，不会缓存）..." [ref=e140]
+              - button "分析" [disabled]
+    - navigation [ref=e141]:
+      - button "🏠 首页" [ref=e142]:
+        - generic [ref=e144]: 🏠
+        - generic [ref=e145]: 首页
+      - button "✏️ 记录" [ref=e146]:
+        - generic [ref=e147]: ✏️
+        - generic [ref=e148]: 记录
+      - button "🏆 排行" [ref=e149]:
+        - generic [ref=e150]: 🏆
+        - generic [ref=e151]: 排行
+      - button "🃏 手牌" [ref=e152]:
+        - generic [ref=e153]: 🃏
+        - generic [ref=e154]: 手牌
+      - button "👤 我的" [ref=e155]:
+        - generic [ref=e156]: 👤
+        - generic [ref=e157]: 我的
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e163] [cursor=pointer]:
+    - img [ref=e164]

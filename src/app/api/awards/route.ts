@@ -1,34 +1,60 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAwardsBySeason, insertAwardRecord, insertAwardRecords } from "@/storage/database/crud";
+import { NextRequest } from "next/server";
+import { getAwardsBySeason, insertAwardRecord, insertAwardRecords, updateAwardRecord, deleteAwardRecord, deleteAwardRecordsBySeason } from "@/storage/database/crud";
+import {
+  createAwardRecordOrRecordsSchema,
+  deleteAwardRecordSchema,
+  updateAwardRecordSchema,
+} from "../_validators";
+import { respond, respondWithParse, badRequestResponse } from "@/services/crud-service";
 
-export async function GET(request: NextRequest) {
-  try {
+export function GET(request: NextRequest) {
+  return respond(() => {
     const { searchParams } = new URL(request.url);
     const seasonId = searchParams.get("season_id");
 
     if (!seasonId) {
-      return NextResponse.json({ success: false, error: "Missing season_id" }, { status: 400 });
+      return badRequestResponse("Missing season_id");
     }
 
-    const data = getAwardsBySeason(seasonId);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+    return getAwardsBySeason(seasonId);
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    if (Array.isArray(body)) {
-      const data = insertAwardRecords(body);
-      return NextResponse.json({ success: true, data });
+  return respondWithParse(request, createAwardRecordOrRecordsSchema, (parsed) => {
+    if (Array.isArray(parsed)) {
+      return insertAwardRecords(parsed);
     }
-    const data = insertAwardRecord(body);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+    return insertAwardRecord(parsed);
+  });
+}
+
+export async function PUT(request: NextRequest) {
+  return respondWithParse(request, updateAwardRecordSchema, ({ id, ...updates }) =>
+    updateAwardRecord(id, updates)
+  );
+}
+
+export function DELETE(request: NextRequest) {
+  return respond(() => {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    const seasonId = searchParams.get("season_id");
+
+    if (id && seasonId) {
+      return badRequestResponse("Provide either id or season_id, not both");
+    }
+
+    if (id) {
+      deleteAwardRecordSchema.parse({ id });
+      return deleteAwardRecord(id);
+    }
+
+    if (seasonId) {
+      deleteAwardRecordsBySeason(seasonId);
+      return;
+    }
+
+    return badRequestResponse("Missing id or season_id");
+  });
 }

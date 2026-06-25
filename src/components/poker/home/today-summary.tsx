@@ -2,8 +2,9 @@
 
 import { useMemo, useCallback } from "react"
 import type { PokerRecord } from "@/lib/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { CalendarDays, Share2 } from "lucide-react"
 
 interface TodaySummaryProps {
   records: PokerRecord[]
@@ -38,13 +39,12 @@ export function TodaySummary({ records, seasonName }: TodaySummaryProps) {
 
   if (todayRecords.length === 0) {
     return (
-      <Card className="border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">📅</span> 今日速览
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="glass-card spotlight-border">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarDays className="size-4 text-muted-foreground" strokeWidth={2} />
+            <span className="text-sm font-semibold">今日速览</span>
+          </div>
           <p className="text-sm text-muted-foreground text-center py-4">
             今日暂无对局记录
           </p>
@@ -54,26 +54,26 @@ export function TodaySummary({ records, seasonName }: TodaySummaryProps) {
   }
 
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="text-lg">📅</span> 今日速览
+    <Card className="glass-card spotlight-border">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="size-4 text-muted-foreground" strokeWidth={2} />
+            <span className="text-sm font-semibold">今日速览</span>
             <span className="text-xs text-muted-foreground font-normal">
               {todayRecords.length} 人
             </span>
-          </CardTitle>
+          </div>
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs h-7 px-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+            className="text-xs h-7 px-2 text-primary hover:text-primary/80 hover:bg-primary/10"
             onClick={handleShare}
           >
-            📸 分享
+            <Share2 className="size-3.5 mr-1" strokeWidth={2} />
+            分享
           </Button>
         </div>
-      </CardHeader>
-      <CardContent>
         <div className="space-y-1">
           {sortedRecords.map((r, i) => (
             <div
@@ -92,7 +92,7 @@ export function TodaySummary({ records, seasonName }: TodaySummaryProps) {
                 <span className="text-sm">{r.player}</span>
               </div>
               <span
-                className={`font-mono text-sm ${
+                className={`font-mono text-sm font-medium ${
                   r.score > 0
                     ? "text-emerald-400"
                     : r.score < 0
@@ -109,8 +109,12 @@ export function TodaySummary({ records, seasonName }: TodaySummaryProps) {
         <div className="border-t border-border/50 mt-2 pt-2 flex justify-between text-xs text-muted-foreground">
           <span>合计</span>
           <span
-            className={`font-mono ${
-              todayTotal === 0 ? "text-emerald-400" : "text-red-400"
+            className={`font-mono font-medium ${
+              todayTotal > 0
+                ? "text-emerald-400"
+                : todayTotal < 0
+                  ? "text-red-400"
+                  : "text-muted-foreground"
             }`}
           >
             {todayTotal > 0 ? "+" : ""}

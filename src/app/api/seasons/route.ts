@@ -1,34 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAllSeasons, insertSeason, updateSeason, endSeasonById } from "@/storage/database/crud";
+import { NextRequest } from "next/server";
+import { getAllSeasonsPaginated, insertSeason, updateSeason, deleteSeason } from "@/storage/database/crud";
+import {
+  createSeasonSchema,
+  updateSeasonSchema,
+  parsePaginationParams,
+} from "../_validators";
+import { respond, respondWithParse, badRequestResponse } from "@/services/crud-service";
 
-export async function GET() {
-  try {
-    const data = getAllSeasons();
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+export async function GET(request: NextRequest) {
+  return respond(() => {
+    const { searchParams } = new URL(request.url);
+    const { page, limit } = parsePaginationParams(searchParams);
+    return getAllSeasonsPaginated(page, limit);
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const season = await request.json();
-    const data = insertSeason(season);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+  return respondWithParse(request, createSeasonSchema, insertSeason);
 }
 
 export async function PUT(request: NextRequest) {
-  try {
-    const { id, ...updates } = await request.json();
-    const data = updateSeason(id, updates);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+  return respondWithParse(request, updateSeasonSchema, ({ id, ...updates }) => updateSeason(id, updates));
+}
+
+export async function DELETE(request: NextRequest) {
+  return respond(() => {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return badRequestResponse("Missing id");
+    }
+
+    return deleteSeason(id);
+  });
 }

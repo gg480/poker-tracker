@@ -1,18 +1,16 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import type { PokerRecord, ComputedStats, HandRecord } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { HandWizard, type HandWizardData } from "./hand-wizard"
 import { QuickEntryWizard, type QuickEntrySaveData } from "./quick-entry-wizard"
-import {
-  CardDisplay, formatActionLine, parseCardCode,
-  type Card as PokerCard, type GameAction, type Position,
-} from "./card-selector"
+import { parseCardCode, type Card as PokerCard, type GameAction, type Position } from "./card-selector"
 import { cardName } from "./poker-engine"
+import { HandBrowser } from "./hand-browser"
+import { STORAGE_KEY_HANDS_CACHE } from "@/lib/constants"
 
 interface HandPageProps {
   records: PokerRecord[]
@@ -20,120 +18,130 @@ interface HandPageProps {
   activeSeasonId?: string
 }
 
-interface SavedHand extends HandWizardData {
-  id?: string
-}
+/** 将 HandRecord 的 actions JSON、board 等字段解析为 HandWizardData 的部分结构 */
+function parseHandRecordToWizardData(hand: HandRecord): Partial<HandWizardData> {
+  let heroCards: PokerCard[] = []
+  let heroPosition: Position = "CO"
+  let numPlayers = 6
+  let blinds = { sb: 50, bb: 100 }
+  let history: GameAction[][] = [[], [], [], []]
 
-interface IncompleteHandCardProps {
-  hand: HandRecord
-  onComplete: (hand: HandRecord) => void
-}
-
-function IncompleteHandCard({ hand, onComplete }: IncompleteHandCardProps) {
-  const heroCardObjects = ((): PokerCard[] => {
-    if (!hand.actions) return []
+  if (hand.actions) {
     try {
       const parsed = JSON.parse(hand.actions)
-      return (parsed.heroCards || [])
-        .map((c: string) => parseCardCode(c))
-        .filter(Boolean) as PokerCard[]
+      heroCards = (parsed.heroCards || []).map((c: string) => parseCardCode(c)).filter(Boolean) as PokerCard[]
+      heroPosition = (parsed.heroPosition as Position) || "CO"
+      numPlayers = parsed.numPlayers || 6
+      blinds = parsed.blinds || { sb: 50, bb: 100 }
+      history = parsed.history || [[], [], [], []]
     } catch {
-      return []
+      // actions 字段格式异常时使用默认值
     }
-  })()
+  }
 
-  const boardCardObjects = hand.board
-    ? hand.board.split(" ").filter(Boolean).map((c) => parseCardCode(c)).filter(Boolean) as PokerCard[]
+  // board 字符串 → flop(3张) / turn(第4张) / river(第5张)
+  const boardCodes = hand.board ? hand.board.split(" ").filter(Boolean) : []
+  const flopCards = boardCodes.slice(0, 3).map((c) => parseCardCode(c)).filter(Boolean) as PokerCard[]
+  const turnCard = boardCodes.length > 3 ? (parseCardCode(boardCodes[3]) as PokerCard | null) : null
+  const riverCard = boardCodes.length > 4 ? (parseCardCode(boardCodes[4]) as PokerCard | null) : null
+
+  // winner 逗号分隔字符串 → Position[]
+  const winner: Position[] = hand.winner
+    ? hand.winner.split(",").map((p) => p.trim()).filter(Boolean) as Position[]
     : []
 
-  const resultValue = hand.result ?? 0
-
-  return (
-    <div className="p-3 border border-border/50 border-l-2 border-l-orange-500 rounded-lg bg-orange-500/5 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{hand.date}</span>
-          <Badge variant="outline" className="text-orange-400 border-orange-500/40 bg-orange-500/10 text-[10px]">
-            待补全
-          </Badge>
-          {hand.quickMode && (
-            <span className="text-[10px] text-muted-foreground/60 font-mono">快速记录</span>
-          )}
-          {hand.sessionId && (
-            <span className="text-[10px] text-muted-foreground/60 font-mono">
-              对局#{hand.sessionId.slice(0, 6)}
-            </span>
-          )}
-        </div>
-        {resultValue !== 0 && (
-          <span className={`font-mono text-sm font-semibold ${resultValue > 0 ? "text-emerald-400" : "text-red-400"}`}>
-            {resultValue > 0 ? "+" : ""}{resultValue}
-          </span>
-        )}
-      </div>
-
-      {heroCardObjects.length > 0 && (
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">手牌:</span>
-          {heroCardObjects.map((c) => <CardDisplay key={c} card={c} size="sm" />)}
-        </div>
-      )}
-
-      {boardCardObjects.length > 0 && (
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">公共牌:</span>
-          {boardCardObjects.map((c) => <CardDisplay key={c} card={c} size="sm" />)}
-        </div>
-      )}
-
-      {hand.tags && hand.tags.length > 0 && (
-        <div className="flex gap-1">
-          {hand.tags.split(",").map((tag: string, j: number) => (
-            <span key={j} className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-300">{tag.trim()}</span>
-          ))}
-        </div>
-      )}
-
-      {hand.notes && <p className="text-xs text-muted-foreground italic">"{hand.notes}"</p>}
-
-      <div className="flex justify-end pt-1">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onComplete(hand)}
-          className="text-orange-400 border-orange-500/40 hover:bg-orange-500/20 text-xs"
-        >
-          补全
-        </Button>
-      </div>
-    </div>
-  )
+  return {
+    date: hand.date,
+    heroCards,
+    heroPosition,
+    numPlayers,
+    blinds,
+    history,
+    flopCards,
+    turnCard,
+    riverCard,
+    result: hand.result ?? 0,
+    winner,
+    notes: hand.notes || "",
+    tags: hand.tags || "",
+    sessionId: hand.sessionId,
+  }
 }
 
-export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
+export function HandPage({ stats, activeSeasonId }: HandPageProps) {
   const [showWizard, setShowWizard] = useState(false)
   const [showQuickEntry, setShowQuickEntry] = useState(false)
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [savedHands, setSavedHands] = useState<SavedHand[]>([])
+  const [completeHands, setCompleteHands] = useState<HandRecord[]>([])
   const [incompleteHands, setIncompleteHands] = useState<HandRecord[]>([])
-
-  // State for completing an incomplete hand via HandWizard
   const [completingHand, setCompletingHand] = useState<HandRecord | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Load incomplete hands on mount and when activeSeasonId changes
+  // Derive combined hands sorted by date (newest first)
+  const allHands = useMemo(() => {
+    return [...completeHands, ...incompleteHands].sort((a, b) => b.date.localeCompare(a.date))
+  }, [completeHands, incompleteHands])
+
+  // Re-fetch complete hands after a save operation
+  const refreshCompleteHands = useCallback(async (seasonId: string) => {
+    try {
+      const res = await fetch(`/api/hands?season_id=${seasonId}&is_complete=true`)
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setCompleteHands(json.data)
+        localStorage.setItem(STORAGE_KEY_HANDS_CACHE, JSON.stringify(json.data))
+      }
+    } catch {
+      // API 读取失败 -> 降级到 localStorage
+      try {
+        const cached = localStorage.getItem(STORAGE_KEY_HANDS_CACHE)
+        if (cached) {
+          setCompleteHands(JSON.parse(cached))
+        }
+      } catch {
+        // localStorage 也无数据，保持空数组
+      }
+    }
+  }, [])
+
+  // Initial load: fetch both complete and incomplete hands
   useEffect(() => {
-    if (!activeSeasonId) return
-    fetch(`/api/hands?season_id=${activeSeasonId}&is_complete=false`)
-      .then((res) => res.json())
-      .then((json) => {
+    if (!activeSeasonId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+
+    const loadComplete = async () => {
+      try {
+        const res = await fetch(`/api/hands?season_id=${activeSeasonId}&is_complete=true`)
+        const json = await res.json()
+        if (json.success && Array.isArray(json.data)) {
+          setCompleteHands(json.data)
+          localStorage.setItem(STORAGE_KEY_HANDS_CACHE, JSON.stringify(json.data))
+        }
+      } catch {
+        try {
+          const cached = localStorage.getItem(STORAGE_KEY_HANDS_CACHE)
+          if (cached) setCompleteHands(JSON.parse(cached))
+        } catch {}
+      }
+    }
+
+    const loadIncomplete = async () => {
+      try {
+        const res = await fetch(`/api/hands?season_id=${activeSeasonId}&is_complete=false`)
+        const json = await res.json()
         if (json.success && json.data) {
           setIncompleteHands(json.data)
         }
-      })
-      .catch(() => {})
+      } catch {}
+    }
+
+    Promise.all([loadComplete(), loadIncomplete()]).finally(() => setLoading(false))
   }, [activeSeasonId])
 
-  // Handler for saving a full hand (from HandWizard, either new or completing)
+  // Handler for saving a full hand (from HandWizard, either new or completing/editing)
   const handleWizardSave = useCallback(async (data: HandWizardData) => {
     try {
       const boardCards = [...data.flopCards]
@@ -176,7 +184,7 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
         tags: data.tags || null,
       }
 
-      // If we're completing an existing hand, use PUT
+      // If we're completing/editing an existing hand, use PUT
       if (completingHand?.id) {
         const res = await fetch("/api/hands", {
           method: "PUT",
@@ -185,11 +193,12 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
         })
         const json = await res.json()
         if (json.success) {
-          setSavedHands((prev) => [{ ...data, id: json.data?.id, sessionId }, ...prev])
           setIncompleteHands((prev) => prev.filter((h) => h.id !== completingHand.id))
           setCompletingHand(null)
           setShowWizard(false)
-          setMsg({ type: "success", text: "手牌记录已补全并保存" })
+          setMsg({ type: "success", text: "手牌记录已保存" })
+          // 刷新已保存手牌列表
+          if (activeSeasonId) refreshCompleteHands(activeSeasonId)
           setTimeout(() => setMsg(null), 3000)
         } else {
           setMsg({ type: "error", text: json.error || "保存失败" })
@@ -205,9 +214,10 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
       })
       const json = await res.json()
       if (json.success) {
-        setSavedHands((prev) => [{ ...data, id: json.data?.id, sessionId }, ...prev])
         setShowWizard(false)
         setMsg({ type: "success", text: "手牌记录已保存" })
+        // 刷新已保存手牌列表
+        if (activeSeasonId) refreshCompleteHands(activeSeasonId)
         setTimeout(() => setMsg(null), 3000)
       } else {
         setMsg({ type: "error", text: json.error || "保存失败" })
@@ -215,7 +225,7 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
     } catch {
       setMsg({ type: "error", text: "网络错误" })
     }
-  }, [activeSeasonId, completingHand])
+  }, [activeSeasonId, completingHand, refreshCompleteHands])
 
   const handleQuickSave = useCallback(async (data: QuickEntrySaveData) => {
     try {
@@ -234,14 +244,13 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
         } catch {}
       }
 
-      const heroCardsStr = data.heroCards.join(" ")
       const body = {
         date: new Date().toISOString().slice(0, 10),
         seasonId: activeSeasonId || "",
         sessionId: sessionId || null,
-        players: "1",
+        players: "2",
         handType: "Holdem",
-        board: heroCardsStr,
+        board: "",  // 修复 OP-02: 快速模式下无公共牌，board 留空
         actions: JSON.stringify({ heroCards: data.heroCards, result: data.result, tag: data.tags, note: data.notes }),
         result: data.result ?? null,
         winner: null,
@@ -261,6 +270,8 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
           setShowQuickEntry(false)
           setCompletingHand(null)
           setMsg({ type: "success", text: "手牌记录已补全并保存" })
+          // 刷新已保存手牌列表
+          if (activeSeasonId) refreshCompleteHands(activeSeasonId)
           setTimeout(() => setMsg(null), 3000)
         } else {
           setMsg({ type: "error", text: json.error || "保存失败" })
@@ -302,10 +313,10 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
     } catch {
       setMsg({ type: "error", text: "网络错误" })
     }
-  }, [activeSeasonId])
+  }, [activeSeasonId, refreshCompleteHands])
 
-  // Click "complete" on an incomplete hand -> open HandWizard with pre-filled data
-  const handleCompleteHand = useCallback((hand: HandRecord) => {
+  // Click any hand card -> open HandWizard with pre-filled data
+  const handleHandClick = useCallback((hand: HandRecord) => {
     setCompletingHand(hand)
     setShowWizard(true)
   }, [])
@@ -319,151 +330,76 @@ export function HandPage({ records, stats, activeSeasonId }: HandPageProps) {
         </Alert>
       )}
 
-      <Card className="border-border/40 bg-card/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+      {completingHand ? (
+        <Card className="border-border/40 bg-card/60 backdrop-blur">
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <span className="text-lg">🃏</span> 手牌记录 + GTO分析
+              <span className="text-lg">🃏</span>
+              {completingHand.isComplete ? "查看/编辑手牌" : "补全手牌"}
             </CardTitle>
-            {!showWizard && !showQuickEntry && !completingHand && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowQuickEntry(true)}
-                  className="text-orange-400 border-orange-500/40 hover:bg-orange-500/20"
-                >
-                  快速记录
-                </Button>
-                <Button size="sm" onClick={() => setShowWizard(true)}>
-                  完整记录
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {completingHand ? (
+          </CardHeader>
+          <CardContent>
             <HandWizard
               onSave={handleWizardSave}
               onCancel={() => { setShowWizard(false); setCompletingHand(null) }}
-              players={stats.players.map((p) => p.name)}
               activeSeasonId={activeSeasonId}
+              initialData={parseHandRecordToWizardData(completingHand)}
             />
-          ) : showWizard ? (
+          </CardContent>
+        </Card>
+      ) : showWizard ? (
+        <Card className="border-border/40 bg-card/60 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="text-lg">🃏</span> 完整记录
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <HandWizard
               onSave={handleWizardSave}
               onCancel={() => setShowWizard(false)}
-              players={stats.players.map((p) => p.name)}
               activeSeasonId={activeSeasonId}
             />
-          ) : showQuickEntry ? (
+          </CardContent>
+        </Card>
+      ) : showQuickEntry ? (
+        <Card className="border-border/40 bg-card/60 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="text-lg">🃏</span> 快速记录
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <QuickEntryWizard
               onSave={handleQuickSave}
               onCancel={() => setShowQuickEntry(false)}
             />
-          ) : (
-            <div className="space-y-3">
-              {/* Incomplete hands section */}
-              {incompleteHands.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-1.5 text-sm text-orange-400 font-medium">
-                    <span>⚠️</span> 未完成的手牌
-                    <Badge variant="outline" className="text-orange-400 border-orange-500/40 bg-orange-500/10 text-[10px]">
-                      {incompleteHands.length}
-                    </Badge>
-                  </div>
-                  {incompleteHands.map((hand) => (
-                    <IncompleteHandCard key={hand.id} hand={hand} onComplete={handleCompleteHand} />
-                  ))}
-                </div>
-              )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {/* Toolbar: add-hand buttons */}
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowQuickEntry(true)}
+              className="text-orange-400 border-orange-500/40 hover:bg-orange-500/20"
+            >
+              快速记录
+            </Button>
+            <Button size="sm" onClick={() => setShowWizard(true)}>
+              完整记录
+            </Button>
+          </div>
 
-              {/* Complete saved hands */}
-              {savedHands.length > 0 ? (
-                <div className="space-y-3">
-                  {incompleteHands.length > 0 && (
-                    <div className="border-t border-border/30 pt-3" />
-                  )}
-                  {savedHands.map((hand, i) => (
-                    <div key={hand.id || i} className="p-3 border border-border/50 rounded-lg bg-muted/10 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{hand.date}</span>
-                          <span className="text-xs text-muted-foreground font-mono">
-                            ★{hand.heroPosition} | {hand.numPlayers}人 | {hand.blinds.sb}/{hand.blinds.bb}
-                          </span>
-                          {hand.winner && hand.winner.length > 0 && (
-                            <span className="text-xs text-emerald-400 font-mono">
-                              🏆 {Array.isArray(hand.winner) ? hand.winner.join(", ") : String(hand.winner)}
-                            </span>
-                          )}
-                          {hand.sessionId && (
-                            <span className="text-[10px] text-muted-foreground/60 font-mono">
-                              对局#{hand.sessionId.slice(0, 6)}
-                            </span>
-                          )}
-                        </div>
-                        {hand.result !== 0 && (
-                          <span className={`font-mono text-sm font-semibold ${hand.result > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                            {hand.result > 0 ? "+" : ""}{hand.result}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">手牌:</span>
-                        {hand.heroCards.map((c: PokerCard) => <CardDisplay key={c} card={c} size="sm" />)}
-                      </div>
-                      {(hand.flopCards.length > 0 || hand.turnCard || hand.riverCard) && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">公共牌:</span>
-                          {hand.flopCards.map((c: PokerCard) => <CardDisplay key={c} card={c} size="sm" />)}
-                          {hand.turnCard && <CardDisplay card={hand.turnCard} size="sm" />}
-                          {hand.riverCard && <CardDisplay card={hand.riverCard} size="sm" />}
-                        </div>
-                      )}
-                      <div className="space-y-1.5">
-                        {hand.history.map((actions, si) => {
-                          if (actions.length === 0) return null
-                          const labels = ["翻前", "翻牌", "转牌", "河牌"]
-                          return (
-                            <div key={si} className="space-y-0.5">
-                              <span className="text-[10px] text-muted-foreground font-medium">{labels[si]}</span>
-                              <div className="flex flex-wrap gap-1">
-                                {actions.map((a: GameAction, j: number) => (
-                                  <span key={`${a.position}-${j}`}>{formatActionLine(a, hand.heroPosition as Position)}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      {hand.notes && <p className="text-xs text-muted-foreground italic">"{hand.notes}"</p>}
-                      {hand.tags && (
-                        <div className="flex gap-1">
-                          {hand.tags.split(",").map((tag: string, j: number) => (
-                            <span key={j} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/20 text-muted-foreground">{tag.trim()}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : incompleteHands.length === 0 ? (
-                <div className="text-center py-8 space-y-3">
-                  <div className="text-3xl">🃏</div>
-                  <p className="text-sm text-muted-foreground">
-                    记录经典手牌 · 牌力评估 · 胜率 · Outs · 底池赔率
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    基于 poker_ai 游戏引擎模型：选中手牌 → 配置盲注 → 按次序记录下注轮次 → 分析
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <HandBrowser
+            hands={allHands}
+            loading={loading}
+            onHandClick={handleHandClick}
+          />
+        </div>
+      )}
     </div>
   )
 }

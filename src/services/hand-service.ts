@@ -1,6 +1,11 @@
+/**
+ * @deprecated This service has no active consumers as of 2026-06-25. Keep for future use or remove if unused after 2026-09-25.
+ */
+
 import type { HandRecord } from "@/lib/types"
 import {
   insertHandRecord,
+  getAllHands,
   getHandsBySeason,
   getHandsBySession,
   getIncompleteHands as crudGetIncompleteHands,
@@ -34,7 +39,8 @@ export function getHands(seasonId?: string, sessionId?: string, isComplete?: boo
   if (sessionId) return getHandsBySession(sessionId) as HandRecord[]
   if (isComplete !== undefined) return getHandsByCompleteStatus(isComplete, seasonId) as HandRecord[]
   if (seasonId) return getHandsBySeason(seasonId) as HandRecord[]
-  return getHandsBySeason("") as HandRecord[]
+  // 修复 OP-12: 无参数时应返回全部手牌，而非用空字符串过滤（永远匹配不到）
+  return getAllHands() as HandRecord[]
 }
 
 export function getIncompleteHands(seasonId?: string): HandRecord[] {
@@ -46,11 +52,6 @@ export function updateHand(id: string, data: Partial<HandRecord>): HandRecord {
   return result as HandRecord
 }
 
-export function deleteHand(id: string): boolean {
-  try {
-    crudDeleteHand(id)
-    return true
-  } catch {
-    return false
-  }
+export function deleteHand(id: string): void {
+  crudDeleteHand(id)
 }

@@ -1,5 +1,4 @@
-import type { PokerRecord, PlayerSettlement, ComputedStats, PlayerStats } from "@/lib/types"
-import { computeStats } from "@/lib/stats"
+import type { PlayerSettlement, ComputedStats } from "@/lib/types"
 import { AWARD_CATEGORIES, MIN_GAMES_FOR_AWARD } from "@/lib/constants"
 
 export interface AwardDefinition {
@@ -11,6 +10,9 @@ export interface AwardDefinition {
   compute: (stats: ComputedStats, settlements: PlayerSettlement[]) => { winner: string; value: string } | null
 }
 
+// NOTE: Duplicated in statistics-service.ts as computeStdDev. Both are local-only
+// (one is dead, the other consumed internally). If statistics-service.ts is ever
+// removed, promote this to @/lib/stats instead.
 function standardDeviation(arr: number[]): number {
   if (arr.length === 0) return 0
   const mean = arr.reduce((a, b) => a + b, 0) / arr.length
@@ -28,7 +30,8 @@ export const AWARD_DEFINITIONS: AwardDefinition[] = [
       const eligible = stats.players.filter((p) => p.games >= MIN_GAMES_FOR_AWARD)
       if (eligible.length === 0) return null
       const winner = [...eligible].sort((a, b) => b.total - a.total)[0]
-      return { winner: winner.name, value: `${winner.total > 0 ? "+" : ""}${winner.total.toLocaleString()}` }
+      if (winner.total <= 0) return null
+      return { winner: winner.name, value: `+${winner.total.toLocaleString()}` }
     },
   },
   {
@@ -72,7 +75,7 @@ export const AWARD_DEFINITIONS: AwardDefinition[] = [
     compute: (stats) => {
       const eligible = stats.players.filter((p) => p.games >= MIN_GAMES_FOR_AWARD)
       if (eligible.length === 0) return null
-      const winner = [...eligible].sort((a, b) => parseFloat(b.winRate) - parseFloat(a.winRate))[0]
+      const winner = [...eligible].sort((a, b) => Number(b.winRate) - Number(a.winRate))[0]
       return { winner: winner.name, value: `${winner.winRate}%` }
     },
   },
@@ -99,7 +102,8 @@ export const AWARD_DEFINITIONS: AwardDefinition[] = [
       const eligible = stats.players.filter((p) => p.games >= MIN_GAMES_FOR_AWARD)
       if (eligible.length === 0) return null
       const winner = [...eligible].sort((a, b) => b.avgScore - a.avgScore)[0]
-      return { winner: winner.name, value: `${winner.avgScore > 0 ? "+" : ""}${winner.avgScore.toLocaleString()}` }
+      if (winner.avgScore <= 0) return null
+      return { winner: winner.name, value: `+${winner.avgScore.toLocaleString()}` }
     },
   },
   {
@@ -207,22 +211,6 @@ export const AWARD_DEFINITIONS: AwardDefinition[] = [
       if (eligible.length === 0) return null
       const winner = [...eligible].sort((a, b) => standardDeviation(b.scores) - standardDeviation(a.scores))[0]
       return { winner: winner.name, value: `σ=${Math.round(standardDeviation(winner.scores))}` }
-    },
-  },
-  {
-    key: "sportsmanship",
-    title: "风度奖",
-    icon: "🎩",
-    category: AWARD_CATEGORIES.SPECIAL,
-    description: "请吃饭清分最多",
-    compute: (stats, settlements) => {
-      const settleMap: Record<string, number> = {}
-      for (const s of settlements) {
-        settleMap[s.player] = (settleMap[s.player] || 0) + s.settleScore
-      }
-      const sorted = Object.entries(settleMap).sort((a, b) => b[1] - a[1])
-      if (sorted.length === 0) return null
-      return { winner: sorted[0][0], value: `${sorted[0][1].toLocaleString()}分` }
     },
   },
   {

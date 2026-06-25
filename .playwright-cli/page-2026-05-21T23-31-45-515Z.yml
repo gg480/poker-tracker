@@ -1,0 +1,237 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e167]:
+      - generic [ref=e168]:
+        - generic [ref=e169]:
+          - generic [ref=e170]: ♠♥♦♣
+          - heading "德扑积分榜" [level=1] [ref=e171]
+        - generic [ref=e172]:
+          - generic [ref=e173]: 7 场
+          - generic [ref=e174]: 11 人
+    - generic [ref=e176]:
+      - button "全部" [ref=e177]
+      - button "赛季2" [ref=e178]: 赛季2
+      - button "赛季1" [ref=e180]
+    - main [ref=e181]:
+      - generic [ref=e414]:
+        - generic [ref=e415]:
+          - button "🏆 排行榜" [ref=e416]
+          - button "📊 赛季报告" [active] [ref=e417]
+        - generic [ref=e685]:
+          - generic [ref=e686]:
+            - generic [ref=e688]:
+              - generic [ref=e689]: 📊
+              - text: 赛季2 · 赛季总结
+            - generic [ref=e691]:
+              - generic [ref=e692]:
+                - generic [ref=e693]: 🎮
+                - generic [ref=e694]: "2"
+                - generic [ref=e695]: 总场次
+              - generic [ref=e696]:
+                - generic [ref=e697]: 👥
+                - generic [ref=e698]: "0"
+                - generic [ref=e699]: 参与玩家
+              - generic [ref=e700]:
+                - generic [ref=e701]: 📈
+                - generic [ref=e702]: "0"
+                - generic [ref=e703]: 场均绝对值
+              - generic [ref=e704]:
+                - generic [ref=e705]: 💫
+                - generic [ref=e706]: "0"
+                - generic [ref=e707]: 积分总流量
+          - generic [ref=e708]:
+            - generic [ref=e711]:
+              - generic [ref=e712]: 🏆
+              - text: 排行榜
+            - generic [ref=e713]:
+              - generic [ref=e715]:
+                - generic [ref=e716]: 🔥
+                - text: 大事记
+              - generic [ref=e717]:
+                - generic [ref=e718]:
+                  - generic [ref=e719]: 💰
+                  - generic [ref=e720]:
+                    - generic [ref=e721]: 单场最高盈利
+                    - generic [ref=e722]: "+0"
+                - generic [ref=e723]:
+                  - generic [ref=e724]: ⚡
+                  - generic [ref=e725]:
+                    - generic [ref=e726]: 最长连胜
+                    - generic [ref=e727]: 0 场
+                - generic [ref=e728]:
+                  - generic [ref=e729]: 🔄
+                  - generic [ref=e730]:
+                    - generic [ref=e731]: 最大逆转
+                    - generic [ref=e732]: 暂无数据
+                - generic [ref=e733]:
+                  - generic [ref=e734]: 🎯
+                  - generic [ref=e735]:
+                    - generic [ref=e736]: 最活跃玩家
+                    - generic [ref=e737]: 0 次
+          - generic [ref=e738]:
+            - generic [ref=e740]:
+              - generic [ref=e741]: 📈
+              - text: 每日积分走势
+            - paragraph [ref=e743]: 暂无数据
+        - generic [ref=e538]:
+          - generic [ref=e539]:
+            - generic [ref=e541]:
+              - generic [ref=e542]: 🏅
+              - text: 赛季颁奖典礼
+              - generic [ref=e543]: 15 个奖项
+            - paragraph [ref=e545]: 基于 ≥5 场以上数据评选
+          - generic [ref=e546]:
+            - generic [ref=e548]:
+              - generic [ref=e549]: 🏆
+              - text: 赢家奖项
+            - generic [ref=e551]:
+              - generic [ref=e552] [cursor=pointer]:
+                - generic [ref=e553]: 🏆
+                - generic [ref=e554]:
+                  - generic [ref=e555]: 赛季冠军
+                  - generic [ref=e556]: 最高累计积分
+                - generic [ref=e557]:
+                  - generic [ref=e558]: 茄
+                  - generic [ref=e559]: "-2,720"
+              - generic [ref=e560] [cursor=pointer]:
+                - generic [ref=e561]: 💰
+                - generic [ref=e562]:
+                  - generic [ref=e563]: 财富之星
+                  - generic [ref=e564]: 单日最高得分
+                - generic [ref=e565]:
+                  - generic [ref=e566]: 茄
+                  - generic [ref=e567]: +2,700
+              - generic [ref=e568] [cursor=pointer]:
+                - generic [ref=e569]: 📈
+                - generic [ref=e570]:
+                  - generic [ref=e571]: 进步最快
+                  - generic [ref=e572]: 近期趋势最强劲
+                - generic [ref=e573]:
+                  - generic [ref=e574]: 茄
+                  - generic [ref=e575]: 近3场均+317
+              - generic [ref=e576] [cursor=pointer]:
+                - generic [ref=e577]: 👑
+                - generic [ref=e578]:
+                  - generic [ref=e579]: 胜率之王
+                  - generic [ref=e580]: 最高胜率
+                - generic [ref=e581]:
+                  - generic [ref=e582]: 茄
+                  - generic [ref=e583]: 40.0%
+              - generic [ref=e584] [cursor=pointer]:
+                - generic [ref=e585]: 🔥
+                - generic [ref=e586]:
+                  - generic [ref=e587]: 最长连胜
+                  - generic [ref=e588]: 最长连胜记录
+                - generic [ref=e589]:
+                  - generic [ref=e590]: 茄
+                  - generic [ref=e591]: 2连
+              - generic [ref=e592] [cursor=pointer]:
+                - generic [ref=e593]: 💎
+                - generic [ref=e594]:
+                  - generic [ref=e595]: 场均王者
+                  - generic [ref=e596]: 场均得分最高
+                - generic [ref=e597]:
+                  - generic [ref=e598]: 茄
+                  - generic [ref=e599]: "-544"
+          - generic [ref=e600]:
+            - generic [ref=e602]:
+              - generic [ref=e603]: 💪
+              - text: 鼓励奖项
+            - generic [ref=e605]:
+              - generic [ref=e606] [cursor=pointer]:
+                - generic [ref=e607]: 🦅
+                - generic [ref=e608]:
+                  - generic [ref=e609]: 凤凰涅槃
+                  - generic [ref=e610]: 最大逆转（单日从负到正）
+                - generic [ref=e611]:
+                  - generic [ref=e612]: 茄
+                  - generic [ref=e613]: 逆转4,700
+              - generic [ref=e614] [cursor=pointer]:
+                - generic [ref=e615]: 💪
+                - generic [ref=e616]:
+                  - generic [ref=e617]: 永不言弃
+                  - generic [ref=e618]: 输最多但坚持出场
+                - generic [ref=e619]:
+                  - generic [ref=e620]: 谦
+                  - generic [ref=e621]: 6场坚持
+              - generic [ref=e622] [cursor=pointer]:
+                - generic [ref=e623]: 🌟
+                - generic [ref=e624]:
+                  - generic [ref=e625]: 追赶之星
+                  - generic [ref=e626]: 近期回升最多
+                - generic [ref=e627]:
+                  - generic [ref=e628]: 茄
+                  - generic [ref=e629]: 回升2152
+              - generic [ref=e630] [cursor=pointer]:
+                - generic [ref=e631]: 🤝
+                - generic [ref=e632]:
+                  - generic [ref=e633]: 好搭档
+                  - generic [ref=e634]: 同场出现次数最多的玩家组合
+                - generic [ref=e635]:
+                  - generic [ref=e636]: 润 & 谦
+                  - generic [ref=e637]: 5次同场
+              - generic [ref=e638] [cursor=pointer]:
+                - generic [ref=e639]: 🎯
+                - generic [ref=e640]:
+                  - generic [ref=e641]: 全勤奖
+                  - generic [ref=e642]: 出勤率最高
+                - generic [ref=e643]:
+                  - generic [ref=e644]: 谦
+                  - generic [ref=e645]: 86%出勤
+              - generic [ref=e646] [cursor=pointer]:
+                - generic [ref=e647]: 🎲
+                - generic [ref=e648]:
+                  - generic [ref=e649]: 运气欠佳
+                  - generic [ref=e650]: 波动最大（标准差最高）
+                - generic [ref=e651]:
+                  - generic [ref=e652]: 茄
+                  - generic [ref=e653]: σ=1825
+          - generic [ref=e654]:
+            - generic [ref=e656]:
+              - generic [ref=e657]: ✨
+              - text: 特别奖项
+            - generic [ref=e659]:
+              - generic [ref=e660] [cursor=pointer]:
+                - generic [ref=e661]: 🎩
+                - generic [ref=e662]:
+                  - generic [ref=e663]: 风度奖
+                  - generic [ref=e664]: 请吃饭清分最多
+                - generic [ref=e665]:
+                  - generic [ref=e666]: 卢老师
+                  - generic [ref=e667]: 16,000分
+              - generic [ref=e668] [cursor=pointer]:
+                - generic [ref=e669]: 📝
+                - generic [ref=e670]:
+                  - generic [ref=e671]: 记录之星
+                  - generic [ref=e672]: 参与场次最多
+                - generic [ref=e673]:
+                  - generic [ref=e674]: 谦
+                  - generic [ref=e675]: 6场
+              - generic [ref=e676] [cursor=pointer]:
+                - generic [ref=e677]: 🎉
+                - generic [ref=e678]:
+                  - generic [ref=e679]: 气氛组
+                  - generic [ref=e680]: 大起大落最戏剧
+                - generic [ref=e681]:
+                  - generic [ref=e682]: 茄
+                  - generic [ref=e683]: 振幅4,700
+    - navigation [ref=e396]:
+      - button "🏠 首页" [ref=e397]:
+        - generic [ref=e398]: 🏠
+        - generic [ref=e399]: 首页
+      - button "✏️ 记录" [ref=e400]:
+        - generic [ref=e402]: ✏️
+        - generic [ref=e403]: 记录
+      - button "🏆 排行" [ref=e404]:
+        - generic [ref=e405]: 🏆
+        - generic [ref=e406]: 排行
+      - button "🃏 手牌" [ref=e407]:
+        - generic [ref=e408]: 🃏
+        - generic [ref=e409]: 手牌
+      - button "👤 我的" [ref=e410]:
+        - generic [ref=e411]: 👤
+        - generic [ref=e412]: 我的
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e163] [cursor=pointer]:
+    - img [ref=e164]
+  - alert [ref=e413]

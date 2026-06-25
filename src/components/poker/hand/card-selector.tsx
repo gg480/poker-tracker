@@ -1,10 +1,10 @@
 "use client"
 
-import { useMemo, useState, useCallback } from "react"
+import { useState, useCallback } from "react"
 import {
   RANK_STR, SUIT_CHAR, SUIT_SYMBOL, SUIT_COLOR,
   POSITIONS, POSITION_LABEL, POSITIONS_FOR_N,
-  ACTIONS, STREET_LABEL,
+  STREET_LABEL,
   makeCard, cardName, parseCardCode, cardRankStr, cardSuitChar, cardSuitSymbol,
   type Card, type Position, type Action, type Street, type GameAction,
 } from "./poker-engine"
@@ -42,26 +42,57 @@ interface CardSelectorProps {
   disabledCards?: Card[]
 }
 
+// 修复 OP-35/IX-46: 无障碍 + 键盘导航
+// - 每个按钮添加 aria-label (含花色和选中状态)
+// - 支持 ArrowLeft/Right 在同花色内移动，ArrowUp/Down 跨花色
+// - focus-visible 样式用于键盘用户
 export function CardSelector({ selectedCards, onCardSelect, maxCards = 5, label, disabledCards }: CardSelectorProps) {
-  const selectedSet = useMemo(() => new Set(selectedCards), [selectedCards])
-  const disabledSet = useMemo(() => new Set(disabledCards || []), [disabledCards])
+  // Sets from small arrays (max ~7 cards) — inline creation is cheaper than memo + comparison
+  const selectedSet = new Set(selectedCards)
+  const disabledSet = new Set(disabledCards || [])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, suitIdx: number, rankIdx: number) => {
+    let newSuit = suitIdx
+    let newRank = rankIdx
+    switch (e.key) {
+      case "ArrowLeft":  newRank = Math.max(0, rankIdx - 1); e.preventDefault(); break
+      case "ArrowRight": newRank = Math.min(RANK_STR.length - 1, rankIdx + 1); e.preventDefault(); break
+      case "ArrowUp":    newSuit = Math.max(0, suitIdx - 1); e.preventDefault(); break
+      case "ArrowDown":  newSuit = Math.min(SUIT_CHAR.length - 1, suitIdx + 1); e.preventDefault(); break
+      default: return
+    }
+    const targetCode = makeCard(RANK_STR[newRank], SUIT_CHAR[newSuit])
+    const btn = document.querySelector(`[data-card-code="${targetCode}"]`) as HTMLElement | null
+    btn?.focus()
+  }, [])
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="grid" aria-label={label || "牌面选择器"}>
       {label && <div className="text-xs text-muted-foreground">{label}</div>}
       <div className="space-y-2">
-        {SUIT_CHAR.map((suit) => (
-          <div key={suit} className="flex items-center gap-1.5">
-            <span className={`w-8 text-center text-lg font-bold ${SUIT_COLOR[suit]}`}>{SUIT_SYMBOL[suit]}</span>
-            <div className="flex gap-1">
-              {RANK_STR.map((rank) => {
+        {SUIT_CHAR.map((suit, suitIdx) => (
+          <div key={suit} role="row" className="flex items-center gap-1.5">
+            <span className={`w-8 text-center text-lg font-bold ${SUIT_COLOR[suit]}`} aria-hidden="true">
+              {SUIT_SYMBOL[suit]}
+            </span>
+            <div role="gridcell" className="flex gap-1">
+              {RANK_STR.map((rank, rankIdx) => {
                 const code = makeCard(rank, suit)
                 const isSelected = selectedSet.has(code)
                 const isDisabled = disabledSet.has(code)
                 const isFull = selectedCards.length >= maxCards && !isSelected
+                const rankLabel = rank === "T" ? "10" : rank
                 return (
-                  <button key={code} disabled={isFull || isDisabled} onClick={() => onCardSelect(code)}
+                  <button
+                    key={code}
+                    data-card-code={code}
+                    disabled={isFull || isDisabled}
+                    onClick={() => onCardSelect(code)}
+                    onKeyDown={(e) => handleKeyDown(e, suitIdx, rankIdx)}
+                    aria-label={`${rankLabel}${SUIT_SYMBOL[suit]}${isSelected ? " 已选" : ""}${isDisabled ? " 不可用" : ""}`}
+                    aria-pressed={isSelected}
                     className={`w-9 h-8 rounded text-sm font-mono font-semibold transition-all duration-150
+                      focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-1
                       ${isSelected
                         ? suit === "h" || suit === "d"
                           ? "bg-red-500/25 text-red-300 ring-1 ring-red-500/50"
@@ -77,7 +108,9 @@ export function CardSelector({ selectedCards, onCardSelect, maxCards = 5, label,
           </div>
         ))}
       </div>
-      <div className="text-xs text-muted-foreground">已选 {selectedCards.length}/{maxCards} 张</div>
+      <div className="text-xs text-muted-foreground" role="status" aria-live="polite">
+        已选 {selectedCards.length}/{maxCards} 张
+      </div>
     </div>
   )
 }

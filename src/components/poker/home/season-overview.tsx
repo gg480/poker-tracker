@@ -1,7 +1,8 @@
 "use client"
 
 import type { Season, PlayerSettlement } from "@/lib/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { Gamepad2, Users, Coins, Calendar } from "lucide-react"
 
 interface SeasonOverviewProps {
   season: Season | null
@@ -25,39 +26,31 @@ export function SeasonOverview({
     0
   )
 
+  const stats = [
+    { icon: Gamepad2, label: "总场次", value: totalGames, color: "text-primary" },
+    { icon: Users, label: "参与人数", value: totalPlayers, color: "text-primary" },
+    { icon: Coins, label: "已清分", value: totalSettled.toLocaleString(), color: "text-amber-400" },
+    { icon: Calendar, label: "当前赛季", value: season?.name || "全部", color: "text-foreground" },
+  ]
+
   return (
-    <Card className="border-border/40 bg-card/60 backdrop-blur">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <span className="text-lg">🏟️</span> 赛季概览
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="glass-card spotlight-border overflow-hidden">
+      <CardContent className="p-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-muted/30 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold font-mono text-primary">
-              {totalGames}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">总场次</div>
-          </div>
-          <div className="bg-muted/30 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold font-mono text-primary">
-              {totalPlayers}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">参与人数</div>
-          </div>
-          <div className="bg-muted/30 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold font-mono text-amber-400">
-              {totalSettled.toLocaleString()}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">已清分</div>
-          </div>
-          <div className="bg-muted/30 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold font-mono">
-              {season?.name || "全部"}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">当前赛季</div>
-          </div>
+          {stats.map((stat) => {
+            const Icon = stat.icon
+            return (
+              <div key={stat.label} className="rounded-lg p-3 bg-muted/20 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Icon className="size-3.5 text-muted-foreground" strokeWidth={2} />
+                  <span className="text-[11px] text-muted-foreground">{stat.label}</span>
+                </div>
+                <div className={`text-xl font-bold font-display ${stat.color}`}>
+                  {stat.value}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </CardContent>
     </Card>

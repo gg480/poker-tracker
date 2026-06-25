@@ -149,8 +149,14 @@ export class PokerEngine {
 
     const sbPlayer = this.players.get("SB")
     const bbPlayer = this.players.get("BB")
-    if (sbPlayer) sbPlayer.streetBetAmount = blinds.sb
-    if (bbPlayer) bbPlayer.streetBetAmount = blinds.bb
+    if (sbPlayer) {
+      sbPlayer.streetBetAmount = blinds.sb
+      sbPlayer.totalChipsCommitted = blinds.sb
+    }
+    if (bbPlayer) {
+      bbPlayer.streetBetAmount = blinds.bb
+      bbPlayer.totalChipsCommitted = blinds.bb
+    }
     this.currentBet = blinds.bb
     this.haveBets = true
     this.minRaise = blinds.bb
@@ -301,9 +307,10 @@ export class PokerEngine {
         break
       }
 
-      case "all_in":
-        pl.streetBetAmount += amount
-        pl.totalChipsCommitted += amount
+      case "all_in": {
+        const previousStreetBet = pl.streetBetAmount
+        pl.streetBetAmount = amount
+        pl.totalChipsCommitted += Math.max(0, amount - previousStreetBet)
         pl.isAllIn = true
         if (pl.streetBetAmount > this.currentBet) {
           this.currentBet = pl.streetBetAmount
@@ -313,6 +320,7 @@ export class PokerEngine {
         }
         this.actedSinceLastRaise.add(player)
         break
+      }
     }
 
     return gameAction
@@ -391,6 +399,23 @@ export class PokerEngine {
     return engine
   }
 
+  /**
+   * Compute net P&L for each position given the winner set.
+   *
+   * STRATEGY: total pot is split equally among winners, and each
+   * loser loses the full amount they committed.
+   *
+   * LIMITATION: True poker side pots are not modelled. In a multi-way
+   * all-in where players have different stack sizes, the pot should be
+   * divided into main + side pots, each awarded to the best hand still
+   * eligible. Here the entire pot is split equally among all named
+   * winners, which is only accurate when every winner contributed the
+   * same amount (or when only one winner exists).
+   *
+   * For the hand-wizard use case this is acceptable because:
+   *   - Users can override results manually via the "手动调整积分" field.
+   *   - The wizard records individual hands, not tournament payouts.
+   */
   computeResults(winnerPositions: Position[]): Map<Position, number> {
     const results = new Map<Position, number>()
     const totalPot = Array.from(this.players.values()).reduce((s, p) => s + p.totalChipsCommitted, 0)
@@ -400,6 +425,8 @@ export class PokerEngine {
     }
 
     if (winnerPositions.length === 0) {
+      // Nobody wins — active (non-folded) players lose their committed chips.
+      // Folded players already forfeited; their P&L is 0 (the pot goes to no one).
       for (const pos of this.positions) {
         const pl = this.players.get(pos)
         if (pl && !pl.hasFolded) {
@@ -410,12 +437,16 @@ export class PokerEngine {
     }
 
     const share = Math.floor(totalPot / winnerPositions.length)
+    let remainder = totalPot % winnerPositions.length
+    let distributed = 0
 
     for (const pos of this.positions) {
       const pl = this.players.get(pos)
       if (!pl) continue
       if (winnerPositions.includes(pos)) {
-        results.set(pos, share - pl.totalChipsCommitted)
+        const extra = distributed < remainder ? 1 : 0
+        results.set(pos, share + extra - pl.totalChipsCommitted)
+        distributed++
       } else {
         results.set(pos, -pl.totalChipsCommitted)
       }
@@ -537,9 +568,8 @@ export class HandEvaluator {
     return callAmount / (potSize + callAmount)
   }
 
-  static shouldCall(potSize: number, callAmount: number, equity: number, outs: number, cardsRemaining: number = 1): { potOdds: number; implied: number; recommendation: string } {
+  static shouldCall(potSize: number, callAmount: number, equity: number): { potOdds: number; implied: number; recommendation: string } {
     const potOdds = this.calcPotOdds(potSize, callAmount)
-    const drawOdds = cardsRemaining > 0 ? (outs / (44 - (5 - cardsRemaining))) : 0
     const recommendation = potOdds < equity
       ? "EV+，建议跟注"
       : potOdds < equity + 0.05

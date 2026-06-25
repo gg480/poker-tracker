@@ -1,68 +1,52 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAllHands, getHandsBySession, getHandsBySeason, getIncompleteHands, getHandsByCompleteStatus, insertHandRecord, updateHandRecord, deleteHandRecord } from "@/storage/database/crud";
+import { NextRequest } from "next/server";
+import { getHandsPaginated, insertHandRecord, updateHandRecord, deleteHandRecord } from "@/storage/database/crud";
+import {
+  createHandRecordSchema,
+  updateHandRecordSchema,
+  parsePaginationParams,
+} from "../_validators";
+import { respond, respondWithParse, badRequestResponse } from "@/services/crud-service";
 
-export async function GET(request: NextRequest) {
-  try {
+export function GET(request: NextRequest) {
+  return respond(() => {
     const { searchParams } = new URL(request.url);
+    const { page, limit } = parsePaginationParams(searchParams);
     const seasonId = searchParams.get("season_id");
     const sessionId = searchParams.get("session_id");
     const isCompleteParam = searchParams.get("is_complete");
+    const isComplete = isCompleteParam !== null ? isCompleteParam === "true" : undefined;
 
-    let data;
-    if (sessionId) {
-      data = getHandsBySession(sessionId);
-    } else if (isCompleteParam !== null) {
-      const isComplete = isCompleteParam === "true";
-      if (seasonId) {
-        data = getHandsByCompleteStatus(isComplete, seasonId);
-      } else {
-        data = getHandsByCompleteStatus(isComplete);
-      }
-    } else if (seasonId) {
-      data = getHandsBySeason(seasonId);
-    } else {
-      data = getAllHands();
-    }
-
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+    return getHandsPaginated(
+      {
+        seasonId: seasonId || undefined,
+        sessionId: sessionId || undefined,
+        isComplete,
+      },
+      page,
+      limit,
+    );
+  });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const record = await request.json();
-    const data = insertHandRecord(record);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+  return respondWithParse(request, createHandRecordSchema, insertHandRecord);
 }
 
 export async function PUT(request: NextRequest) {
-  try {
-    const { id, ...updates } = await request.json();
-    const data = updateHandRecord(id, updates);
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+  return respondWithParse(request, updateHandRecordSchema, ({ id, ...updates }) =>
+    updateHandRecord(id, updates)
+  );
 }
 
 export async function DELETE(request: NextRequest) {
-  try {
-    const { id } = await request.json();
+  return respond(() => {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
     if (!id) {
-      return NextResponse.json({ success: false, error: "Missing id" }, { status: 400 });
+      return badRequestResponse("Missing id");
     }
-    deleteHandRecord(id);
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+
+    return deleteHandRecord(id);
+  });
 }

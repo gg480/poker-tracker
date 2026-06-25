@@ -1,19 +1,21 @@
+import type { PokerRecord, GameSession } from "@/lib/types"
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
 interface RecordState {
-  records: any[]
-  sessions: any[]
+  records: PokerRecord[]
+  sessions: GameSession[]
   loading: boolean
 }
 
 interface RecordActions {
-  loadRecords: (records: any[]) => void
-  addRecord: (record: any) => void
-  addRecords: (records: any[]) => void
+  loadRecords: (records: PokerRecord[]) => void
+  addRecord: (record: PokerRecord) => void
+  addRecords: (records: PokerRecord[]) => void
   removeRecordsByDate: (date: string) => void
-  loadSessions: (sessions: any[]) => void
-  addSession: (session: any) => void
-  updateSession: (session: any) => void
+  loadSessions: (sessions: GameSession[]) => void
+  addSession: (session: GameSession) => void
+  updateSession: (session: GameSession) => void
   removeSession: (sessionId: string) => void
   setLoading: (loading: boolean) => void
   reset: () => void
@@ -25,38 +27,49 @@ const initialState: RecordState = {
   loading: false,
 }
 
-export const useRecordStore = create<RecordState & RecordActions>()((set) => ({
-  ...initialState,
+export const useRecordStore = create<RecordState & RecordActions>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  loadRecords: (records) => set({ records }),
+      loadRecords: (records) => set({ records }),
 
-  addRecord: (record) =>
-    set((state) => ({ records: [record, ...state.records] })),
+      addRecord: (record) =>
+        set((state) => ({ records: [record, ...state.records] })),
 
-  addRecords: (records) =>
-    set((state) => ({ records: [...records, ...state.records] })),
+      addRecords: (records) =>
+        set((state) => ({ records: [...records, ...state.records] })),
 
-  removeRecordsByDate: (date) =>
-    set((state) => ({
-      records: state.records.filter((r) => r.date !== date),
-    })),
+      removeRecordsByDate: (date) =>
+        set((state) => ({
+          records: state.records.filter((r) => r.date !== date),
+        })),
 
-  loadSessions: (sessions) => set({ sessions }),
+      loadSessions: (sessions) => set({ sessions }),
 
-  addSession: (session) =>
-    set((state) => ({ sessions: [session, ...state.sessions] })),
+      addSession: (session) =>
+        set((state) => ({ sessions: [session, ...state.sessions] })),
 
-  updateSession: (session) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) => (s.id === session.id ? session : s)),
-    })),
+      updateSession: (session) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => (s.id === session.id ? session : s)),
+        })),
 
-  removeSession: (sessionId) =>
-    set((state) => ({
-      sessions: state.sessions.filter((s) => s.id !== sessionId),
-    })),
+      removeSession: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.filter((s) => s.id !== sessionId),
+        })),
 
-  setLoading: (loading) => set({ loading }),
+      setLoading: (loading) => set({ loading }),
 
-  reset: () => set(initialState),
-}))
+      reset: () => set(initialState),
+    }),
+    {
+      name: "poker-record-store",
+      partialize: (state) => ({
+        records: state.records,
+        sessions: state.sessions,
+      }),
+    }
+  )
+)

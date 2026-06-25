@@ -1,3 +1,3 @@
 export { db } from "./drizzle"
 export * from "./crud"
-export { seedDatabase, isSeeded } from "./seed"
+export { seedDatabase, isSeeded, resetSeed } from "./seed"

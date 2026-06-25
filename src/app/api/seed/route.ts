@@ -1,25 +1,30 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { seedDatabase, isSeeded } from "@/storage/database/seed"
+import { respond } from "@/services/crud-service"
 
 export async function GET() {
-  try {
-    if (isSeeded()) {
-      return NextResponse.json({ success: true, message: "Already seeded" })
-    }
+  return respond(() => {
+    if (isSeeded()) return { message: "Already seeded" }
     seedDatabase()
-    return NextResponse.json({ success: true, message: "Database seeded" })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
-  }
+    return { message: "Database seeded" }
+  })
 }
 
-export async function POST() {
-  try {
-    seedDatabase()
-    return NextResponse.json({ success: true, message: "Database seeded (forced)" })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+export async function POST(request: NextRequest) {
+  // 修复 OP-20: 添加环境变量 token 验证，防止远程清空数据库
+  const adminToken = process.env.ADMIN_TOKEN
+  if (adminToken) {
+    const { searchParams } = new URL(request.url)
+    const token = searchParams.get("token")
+    if (token !== adminToken) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized: invalid or missing admin token" },
+        { status: 401 }
+      )
+    }
   }
+  return respond(() => {
+    seedDatabase()
+    return { message: "Database seeded (forced)" }
+  })
 }

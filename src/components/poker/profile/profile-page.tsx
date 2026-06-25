@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import type { Season, PlayerSettlement, ComputedStats } from "@/lib/types"
+import { useState, useCallback, useMemo, useRef, useEffect } from "react"
+import type { Season, PlayerSettlement, ComputedStats, GameSession } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { EndSeasonDialog } from "@/components/poker/season/end-season-dialog"
-import { TencentDocsPanel } from "./tencent-docs-panel"
-import { recordsToCSV } from "@/services/tencent-docs-service"
+import { SESSION_STATUS, MESSAGE_DISMISS_DURATION, TOAST_SHORT_DURATION, STORAGE_KEY_DEFAULT_PLAYER } from "@/lib/constants"
+import { useLocalStorage } from "@/hooks/use-local-storage"
 
 interface ProfilePageProps {
   seasons: Season[]
@@ -16,11 +16,11 @@ interface ProfilePageProps {
   stats: ComputedStats
   settlements: PlayerSettlement[]
   records: { date: string; player: string; score: number }[]
+  sessions: GameSession[]
   onEndSeason: () => void
   onCreateSeason: (name: string) => void
   onExport: () => void
   onImport: (file: File) => void
-  onImportCSVRecords: (records: { date: string; player: string; score: number }[]) => void
 }
 
 export function ProfilePage({
@@ -29,19 +29,35 @@ export function ProfilePage({
   stats,
   settlements,
   records,
+  sessions,
   onEndSeason,
   onCreateSeason,
   onExport,
   onImport,
-  onImportCSVRecords,
 }: ProfilePageProps) {
   const [newSeasonName, setNewSeasonName] = useState("")
   const [endSeasonOpen, setEndSeasonOpen] = useState(false)
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [defaultPlayer, setDefaultPlayer] = useState(() => {
-    if (typeof window === "undefined") return ""
-    return localStorage.getItem("poker-default-player") || ""
-  })
+  const [defaultPlayer, setDefaultPlayer] = useLocalStorage(STORAGE_KEY_DEFAULT_PLAYER, "")
+  const msgTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup message timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (msgTimeoutRef.current) clearTimeout(msgTimeoutRef.current)
+    }
+  }, [])
+
+  // 赛季盘点统计数据
+  const seasonSessionStats = useMemo(() => {
+    if (!activeSeason) return { sessionCount: 0, pending: 0, collected: 0 }
+    const seasonSessions = sessions.filter((s) => s.seasonId === activeSeason.id)
+    return {
+      sessionCount: seasonSessions.length,
+      pending: seasonSessions.filter((s) => s.status === SESSION_STATUS.PENDING).length,
+      collected: seasonSessions.filter((s) => s.status === SESSION_STATUS.COLLECTED).length,
+    }
+  }, [sessions, activeSeason])
 
   const handleCreateSeason = useCallback(() => {
     if (!newSeasonName.trim()) {
@@ -51,14 +67,16 @@ export function ProfilePage({
     onCreateSeason(newSeasonName.trim())
     setNewSeasonName("")
     setMsg({ type: "success", text: `赛季"${newSeasonName}"已创建` })
-    setTimeout(() => setMsg(null), 3000)
+    if (msgTimeoutRef.current) clearTimeout(msgTimeoutRef.current)
+    msgTimeoutRef.current = setTimeout(() => setMsg(null), MESSAGE_DISMISS_DURATION)
   }, [newSeasonName, onCreateSeason])
 
   const handleSaveDefaultPlayer = useCallback(() => {
-    localStorage.setItem("poker-default-player", defaultPlayer)
+    // useLocalStorage 已自动持久化，此处仅展示确认提示
     setMsg({ type: "success", text: "默认玩家已保存" })
-    setTimeout(() => setMsg(null), 2000)
-  }, [defaultPlayer])
+    if (msgTimeoutRef.current) clearTimeout(msgTimeoutRef.current)
+    msgTimeoutRef.current = setTimeout(() => setMsg(null), TOAST_SHORT_DURATION)
+  }, [])
 
   const handleFileImport = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,22 +212,6 @@ export function ProfilePage({
         </CardContent>
       </Card>
 
-      <TencentDocsPanel
-        onImport={onImportCSVRecords}
-        onExportCSV={() => {
-          const csv = recordsToCSV(records)
-          const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })
-          const url = URL.createObjectURL(blob)
-          const link = document.createElement("a")
-          link.href = url
-          link.download = `poker-records-${new Date().toISOString().split("T")[0]}.csv`
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          URL.revokeObjectURL(url)
-        }}
-      />
-
       {activeSeason && (
         <EndSeasonDialog
           open={endSeasonOpen}
@@ -218,6 +220,12 @@ export function ProfilePage({
           seasonId={activeSeason.id}
           players={stats.players}
           settlements={settlements}
+          sessionCount={seasonSessionStats.sessionCount}
+          pendingSessionCount={seasonSessionStats.pending}
+          collectedSessionCount={seasonSessionStats.collected}
+          incompleteHandsCount={0}
+          seasonRecordCount={records.length}
+          seasonPlayerCount={stats.players.length}
           onConfirm={() => {
             onEndSeason()
             setEndSeasonOpen(false)

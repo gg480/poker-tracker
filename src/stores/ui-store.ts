@@ -1,6 +1,11 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+/**
+ * Tab identifiers used in the bottom navigation bar.
+ * Note: `TabKey` in `@/lib/types` is the full superset (includes "coach").
+ * This type is intentionally a subset — not all app sections appear as tabs.
+ */
 export type TabType = "home" | "record" | "ranking" | "hand" | "profile"
 
 interface DialogStates {
@@ -9,7 +14,6 @@ interface DialogStates {
   shareCard: boolean
   addHand: boolean
   importExport: boolean
-  tencentDocs: boolean
 }
 
 interface UIState {
@@ -17,6 +21,7 @@ interface UIState {
   seasonFilter: string
   selectedPlayer: string | null
   dialogStates: DialogStates
+  currentSessionId: string | null
 }
 
 interface UIActions {
@@ -25,6 +30,7 @@ interface UIActions {
   setSelectedPlayer: (player: string | null) => void
   toggleDialog: (dialog: keyof DialogStates, open?: boolean) => void
   resetDialogs: () => void
+  setCurrentSessionId: (sessionId: string | null) => void
 }
 
 const initialDialogStates: DialogStates = {
@@ -33,16 +39,16 @@ const initialDialogStates: DialogStates = {
   shareCard: false,
   addHand: false,
   importExport: false,
-  tencentDocs: false,
 }
 
 export const useUIStore = create<UIState & UIActions>()(
   persist(
     (set) => ({
       activeTab: "home",
-      seasonFilter: "",
+      seasonFilter: "all",
       selectedPlayer: null,
       dialogStates: initialDialogStates,
+      currentSessionId: null,
 
       setActiveTab: (tab) => set({ activeTab: tab }),
       setSeasonFilter: (seasonId) => set({ seasonFilter: seasonId }),
@@ -55,13 +61,21 @@ export const useUIStore = create<UIState & UIActions>()(
           },
         })),
       resetDialogs: () => set({ dialogStates: initialDialogStates }),
+      setCurrentSessionId: (sessionId) => set({ currentSessionId: sessionId }),
     }),
     {
       name: "poker-ui-store",
       partialize: (state) => ({
         activeTab: state.activeTab,
         seasonFilter: state.seasonFilter,
+        currentSessionId: state.currentSessionId,
       }),
+      migrate: (persisted) => {
+        const s = persisted as Record<string, unknown>
+        if (s.seasonFilter === "") s.seasonFilter = "all"
+        return s
+      },
+      version: 1,
     }
   )
 )

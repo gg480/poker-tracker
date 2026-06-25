@@ -1,25 +1,40 @@
 "use client"
 
+import { useState } from "react"
 import type { GameSession } from "@/lib/types"
-import { SESSION_STATUS } from "@/lib/constants"
+import { SESSION_STATUS, SESSION_PREVIEW_LIMIT, TEXT_POSITIVE, TEXT_NEGATIVE, TEXT_NEUTRAL, BG_POSITIVE, BG_NEGATIVE } from "@/lib/constants"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface SessionCardProps {
   session: GameSession
   records: { player: string; score: number }[]
   expanded?: boolean
   onClick?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 const STATUS_CONFIG = {
   [SESSION_STATUS.PENDING]: {
-    label: "待录入",
+    label: "等待录入",
     variant: "outline" as const,
-    className: "border-amber-500/50 text-amber-400",
+    className: "border-gray-500/50 text-gray-400",
   },
   [SESSION_STATUS.COLLECTED]: {
-    label: "已收齐",
+    label: "已收齐待确认",
     variant: "outline" as const,
     className: "border-blue-500/50 text-blue-400",
   },
@@ -30,14 +45,24 @@ const STATUS_CONFIG = {
   },
 }
 
-export function SessionCard({ session, records, expanded, onClick }: SessionCardProps) {
+export function SessionCard({ session, records, expanded, onClick, onEdit, onDelete }: SessionCardProps) {
   const statusConfig = STATUS_CONFIG[session.status] || STATUS_CONFIG[SESSION_STATUS.PENDING]
   const totalScore = records.reduce((sum, r) => sum + r.score, 0)
   const sortedRecords = [...records].sort((a, b) => b.score - a.score)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  const handleDelete = () => {
+    setDeleteDialogOpen(false)
+    onDelete?.()
+  }
 
   return (
     <Card
-      className={`border-border/40 bg-card/60 backdrop-blur cursor-pointer transition-all duration-200 hover:bg-card/90 ${
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-expanded={onClick ? expanded : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick() } } : undefined}
+      className={`border-border/40 bg-card/60 backdrop-blur cursor-pointer transition-all duration-200 hover:bg-card/90 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2 ${
         expanded ? "ring-1 ring-primary/30" : ""
       }`}
       onClick={onClick}
@@ -52,7 +77,7 @@ export function SessionCard({ session, records, expanded, onClick }: SessionCard
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{records.length} 人</span>
-            <span className={`font-mono ${totalScore === 0 ? "text-emerald-500" : "text-red-500"}`}>
+            <span className={`font-mono ${totalScore > 0 ? TEXT_POSITIVE : totalScore < 0 ? TEXT_NEGATIVE : TEXT_NEUTRAL}`}>
               合计: {totalScore > 0 ? "+" : ""}{totalScore}
             </span>
           </div>
@@ -77,38 +102,78 @@ export function SessionCard({ session, records, expanded, onClick }: SessionCard
                 <span
                   className={`font-mono ${
                     r.score > 0
-                      ? "text-emerald-500"
+                      ? TEXT_POSITIVE
                       : r.score < 0
-                        ? "text-red-500"
-                        : "text-muted-foreground"
+                        ? TEXT_NEGATIVE
+                        : TEXT_NEUTRAL
                   }`}
                 >
                   {r.score > 0 ? "+" : ""}{r.score}
                 </span>
               </div>
             ))}
+
+            {/* 编辑 / 删除按钮 */}
+            <div className="flex items-center gap-2 pt-3 border-t border-border/30 mt-2" onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 px-2"
+                onClick={() => onEdit?.()}
+              >
+                ✏️ 编辑
+              </Button>
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 px-2 text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    🗑️ 删除
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="max-w-sm">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>确认删除本场次？</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      此操作不可撤销，该场次的所有积分记录将被永久删除。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+                    <AlertDialogCancel className="flex-1">取消</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="flex-1 bg-red-600 hover:bg-red-500 text-white"
+                      onClick={handleDelete}
+                    >
+                      确认删除
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         )}
 
         {!expanded && records.length > 0 && (
           <div className="flex gap-1 flex-wrap mt-1">
-            {sortedRecords.slice(0, 4).map((r, i) => (
+            {sortedRecords.slice(0, SESSION_PREVIEW_LIMIT).map((r, i) => (
               <span
                 key={r.player || `player-${i}`}
                 className={`text-[10px] px-1.5 py-0.5 rounded ${
                   r.score > 0
-                    ? "bg-emerald-500/10 text-emerald-400"
+                    ? BG_POSITIVE
                     : r.score < 0
-                      ? "bg-red-500/10 text-red-400"
+                      ? BG_NEGATIVE
                       : "bg-muted text-muted-foreground"
                 }`}
               >
                 {r.player} {r.score > 0 ? "+" : ""}{r.score}
               </span>
             ))}
-            {sortedRecords.length > 4 && (
+            {sortedRecords.length > SESSION_PREVIEW_LIMIT && (
               <span className="text-[10px] text-muted-foreground px-1">
-                +{sortedRecords.length - 4}人
+                +{sortedRecords.length - SESSION_PREVIEW_LIMIT}人
               </span>
             )}
           </div>
