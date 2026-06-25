@@ -107,7 +107,7 @@ export const playerSettlements = sqliteTable(
   (table) => [
     // player alone is covered by player_settlements_unique_idx (player is prefix)
     index("player_settlements_season_player_idx").on(table.seasonId, table.player),
-    index("player_settlements_unique_idx").on(table.player, table.seasonId),
+    uniqueIndex("player_settlements_unique_idx").on(table.player, table.seasonId),
   ]
 )
 
