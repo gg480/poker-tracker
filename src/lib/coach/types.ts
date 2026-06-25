@@ -19,7 +19,7 @@ export type CoachStatus = "in_progress" | "completed" | "abandoned"
 export type Position = "UTG" | "MP" | "CO" | "BTN" | "SB" | "BB"
 export type HandStrength = "nut" | "top_pair_plus" | "middle_pair" | "draw" | "weak"
 export type TableSize = 6 | 9
-export type HandResult = "win" | "lose" | "fold"
+export type HandResult = "win" | "lose" | "tie" | "fold"
 
 // ==================== 数据库模型 ====================
 

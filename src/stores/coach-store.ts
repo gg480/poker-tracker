@@ -15,6 +15,7 @@ import { calculateEquity, calculatePotOdds, calculateEV } from "@/lib/coach/equi
 import { getOpponentDecision } from "@/lib/coach/opponent-engine"
 import { evaluateDeviation } from "@/lib/coach/feedback-engine"
 import { evaluateHandStrength, getPostflopAdvice } from "@/lib/coach/postflop-strategy"
+import { compareHandsNormalized } from "@/lib/coach/hand-evaluator"
 
 // ====== 牌桌工具 ======
 
@@ -76,10 +77,11 @@ interface CoachState {
   userStack: number
   opponentStack: number
   holeCards: string[]
+  opponentCards: string[]  // AI opponent's hole cards (generated at deal, hidden from user)
   boardCards: string[]
   isUserTurn: boolean
   isHandComplete: boolean
-  handResult: string | null
+  handResult: "win" | "lose" | "tie" | null
   netChips: number
 
   // Amount the user needs to call right now (for getPotOdds)
@@ -139,6 +141,7 @@ const initialState: CoachState = {
   userStack: 10000,
   opponentStack: 10000,
   holeCards: [],
+  opponentCards: [],
   boardCards: [],
   isUserTurn: true,
   isHandComplete: false,
@@ -185,6 +188,7 @@ export const useCoachStore = create<CoachState & CoachActions>()(
           potSize: 0,
           street: "preflop",
           holeCards: [],
+          opponentCards: [],
           boardCards: [],
           isUserTurn: true,
           isHandComplete: false,
@@ -220,12 +224,15 @@ export const useCoachStore = create<CoachState & CoachActions>()(
 
         const handNum = get().handNumber + 1
         const holeCards = generateRandomHoleCards()
+        // Generate opponent's hole cards independently (opponent does NOT see user's cards)
+        const opponentCards = drawCards(2, holeCards)
         const street: Street = "preflop"
 
         set({
           handNumber: handNum,
           street,
           holeCards,
+          opponentCards,
           boardCards: [],
           potSize: settings.blindSmall + settings.blindBig,
           isUserTurn: true,
@@ -247,7 +254,19 @@ export const useCoachStore = create<CoachState & CoachActions>()(
         }
         const next = nextStreet[street]
         if (!next) {
-          set({ isHandComplete: true, handResult: "win", netChips: get().potSize })
+          // River: compare hands to determine actual winner
+          const { holeCards, opponentCards, boardCards, potSize, userStack, opponentStack } = get()
+          const userHand = [...holeCards, ...boardCards]
+          const opponentHand = [...opponentCards, ...boardCards]
+          const result = compareHandsNormalized(userHand, opponentHand)
+          const userWins = result > 0
+          set({
+            isHandComplete: true,
+            handResult: userWins ? "win" : "lose",
+            netChips: userWins ? potSize : 0,
+            // If user wins, add pot to user stack; opponent already committed their bet
+            userStack: userWins ? userStack + potSize : userStack,
+          })
           return
         }
 
@@ -300,12 +319,12 @@ export const useCoachStore = create<CoachState & CoachActions>()(
         const deviationResult = evaluateDeviation(action, gtoAdvice, context)
         const isCorrect = deviationResult.feedbackType === "positive"
 
-        // --- 5. Opponent decision via real engine ---
+        // --- 5. Opponent decision via real engine (uses OPPONENT's own cards, NOT user's) ---
         const opponentResponse = action === "fold"
           ? { action: "none" as const, betAmount: 0 }
           : getOpponentDecision(
               street,
-              holeCards,
+              state.opponentCards,
               boardCards,
               potSize,
               opponentStack,
@@ -370,6 +389,38 @@ export const useCoachStore = create<CoachState & CoachActions>()(
         // --- 8. Determine if hand is over ---
         const isHandOver = action === "fold" || opponentResponse.action === "fold" || street === "river"
 
+        // River showdown: compare actual hands
+        let handResult: "win" | "lose" | "tie" | null = null
+        let finalNetChips = 0
+        if (action === "fold") {
+          handResult = "lose"
+          finalNetChips = -betAmount
+        } else if (opponentResponse.action === "fold") {
+          handResult = "win"
+          finalNetChips = potSize
+        } else if (street === "river") {
+          // Compare hands: user's 7-card hand vs opponent's 7-card hand
+          const userHand = [...holeCards, ...boardCards]
+          const opponentHand = [...state.opponentCards, ...boardCards]
+          const cmp = compareHandsNormalized(userHand, opponentHand)
+          if (cmp > 0) {
+            handResult = "win"
+            finalNetChips = potSize
+            newUserStack = userStack + potSize
+          } else if (cmp < 0) {
+            handResult = "lose"
+            finalNetChips = 0
+          } else {
+            handResult = "tie"
+            finalNetChips = potSize / 2
+            newUserStack = userStack + potSize / 2
+          }
+        }
+
+        // Update decision record with actual result
+        decision.result = handResult
+        decision.netChips = finalNetChips
+
         set({
           decisions: [...state.decisions, decision],
           feedbacks: [...state.feedbacks, feedbackRecord],
@@ -378,8 +429,8 @@ export const useCoachStore = create<CoachState & CoachActions>()(
           opponentStack: newOpponentStack,
           isUserTurn: false,
           isHandComplete: isHandOver,
-          handResult: isHandOver ? (action === "fold" ? "lose" : opponentResponse.action === "fold" ? "win" : null) : null,
-          netChips: isHandOver ? (action === "fold" ? -betAmount : opponentResponse.action === "fold" ? potSize : 0) : 0,
+          handResult,
+          netChips: finalNetChips,
         })
       },
 
