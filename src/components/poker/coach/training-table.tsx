@@ -59,20 +59,15 @@ export function TrainingTable({ onEndSession }: TrainingTableProps) {
     return { action: lastDec.opponentAction as PlayerAction, betAmount: lastDec.opponentBetAmount }
   }, [decisions])
 
-  const canCheck = useMemo(() => {
-    // 如果底池只有盲注，可以过牌
-    const lastDec = decisions[decisions.length - 1]
-    if (!lastDec) return true
-    return lastDec.opponentAction === null || lastDec.opponentAction === "check"
-  }, [decisions])
-
   const callAmount = useMemo(() => {
     const lastDec = decisions[decisions.length - 1]
-    if (!lastDec || !lastDec.opponentBetAmount) return 0
-    return lastDec.opponentBetAmount
+    if (!lastDec) return 0
+    return Math.max(0, lastDec.opponentBetAmount - lastDec.userBetAmount)
   }, [decisions])
 
-  const minRaise = useMemo(() => Math.max(settings.blindBig * 2, callAmount * 2), [settings.blindBig, callAmount])
+  const canCheck = useMemo(() => callAmount === 0, [callAmount])
+
+  const minRaise = useMemo(() => Math.max(settings.blindBig, callAmount * 2), [settings.blindBig, callAmount])
   const maxRaise = useMemo(() => userStack, [userStack])
 
   const handleAction = useCallback((action: PlayerAction, betAmount: number) => {
@@ -169,14 +164,40 @@ export function TrainingTable({ onEndSession }: TrainingTableProps) {
         {/* 操作区域 */}
         <div className="w-full max-w-lg space-y-2">
           {isUserTurn && !isHandComplete ? (
-            <ActionButtons
-              canCheck={canCheck}
-              callAmount={callAmount}
-              minRaise={minRaise}
-              maxRaise={maxRaise}
-              disabled={false}
-              onAction={handleAction}
-            />
+            <div className="space-y-2">
+              {advice && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs flex items-center justify-between">
+                  <span className="text-blue-300">
+                    GTO:{" "}
+                    <span className="font-semibold text-blue-200">
+                      {advice.action === "fold"
+                        ? "弃牌"
+                        : advice.action === "check"
+                          ? "过牌"
+                          : advice.action === "call"
+                            ? "跟注"
+                            : advice.action === "raise" && advice.raiseSize
+                              ? `下注 ${Math.round(
+                                  advice.raiseSize *
+                                    (street === "preflop" ? settings.blindBig : 1)
+                                )}`
+                              : "加注"}
+                    </span>
+                  </span>
+                  <span className="text-blue-300/70">
+                    {Math.round(advice.frequency * 100)}%
+                  </span>
+                </div>
+              )}
+              <ActionButtons
+                canCheck={canCheck}
+                callAmount={callAmount}
+                minRaise={minRaise}
+                maxRaise={maxRaise}
+                disabled={false}
+                onAction={handleAction}
+              />
+            </div>
           ) : isHandComplete ? (
             <div className="flex flex-col items-center gap-2">
               <div className={`text-sm font-bold ${handResult === "win" ? "text-emerald-400" : "text-red-400"}`}>

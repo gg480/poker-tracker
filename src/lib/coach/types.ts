@@ -246,3 +246,93 @@ export interface DecisionContext {
   ev: number
   potSize: number
 }
+
+// ==================== 多人牌桌类型 (Multi-player Table) ====================
+
+/**
+ * Opponent personality configuration for AI players at a multi-player table.
+ */
+export interface OpponentConfig {
+  style: OpponentStyle
+  name: string
+}
+
+/**
+ * Configuration to create a new multi-player table session.
+ */
+export interface TableConfig {
+  playerCount: 6 | 9
+  startingStack: number
+  smallBlind: number
+  bigBlind: number
+  opponentStyle: OpponentStyle
+  /** Custom name for the human player (default "Hero"). */
+  userName?: string
+  /** Custom names for AI opponents. Auto-generated if omitted. */
+  aiNames?: string[]
+}
+
+/**
+ * UI representation of a single seat at the table.
+ * Opponent hole cards are hidden (empty array) until showdown.
+ */
+export interface TableSeat {
+  seatIndex: number
+  playerName: string
+  stack: number
+  bet: number
+  /** Hole cards. Empty for opponents unless showdown reveals them. */
+  cards: string[]
+  folded: boolean
+  isAllIn: boolean
+  isActive: boolean
+  isUser: boolean
+}
+
+/**
+ * Actions the user can take on their turn, with sizing constraints.
+ */
+export interface AvailableActions {
+  canFold: boolean
+  canCheck: boolean
+  canCall: boolean
+  canBet: boolean
+  canRaise: boolean
+  /** Minimum raise amount (0 if canRaise is false). */
+  minRaise: number
+  /** Amount needed to call (0 if canCheck). */
+  callAmount: number
+  /** Current bet size (the amount to match). */
+  currentBet: number
+  /** Minimum bet amount (0 if canBet is false). */
+  minBet: number
+}
+
+/**
+ * Immutable snapshot of the full table state for UI rendering.
+ */
+export interface TableState {
+  seats: TableSeat[]
+  board: string[]
+  pot: number
+  street: Street
+  currentPlayerIndex: number
+  buttonIndex: number
+  smallBlindIndex: number
+  bigBlindIndex: number
+  isUserTurn: boolean
+  isHandComplete: boolean
+  isShowdown: boolean
+  availableActions: AvailableActions | null
+  /** Winners at showdown (empty array otherwise). */
+  winners: TableWinner[]
+}
+
+/**
+ * A winner at showdown: which seat(s) won and how much.
+ */
+export interface TableWinner {
+  seatIndex: number
+  winAmount: number
+  handName?: string
+}
